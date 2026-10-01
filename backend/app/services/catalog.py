@@ -22,7 +22,7 @@ class CatalogEntry(BaseModel):
     subcategory2: str = ""
     subcategory3: str = ""
     license: str = "MIT"
-    repo: str = "Official"  # "Official" or "Plugin"
+    repo: str = "Official"  # "Official" or "Community" / "Plugin"
     author: str = ""
     how_to_use: str = ""
     params: list[ParamSpec] = Field(default_factory=list)
@@ -61,7 +61,11 @@ class CatalogService:
 
         res = self._entries
         if repo_type:
-            res = [e for e in res if e.repo.lower() == repo_type.lower()]
+            r_target = repo_type.lower()
+            if r_target in ("plugin", "community"):
+                res = [e for e in res if e.repo.lower() in ("plugin", "community")]
+            else:
+                res = [e for e in res if e.repo.lower() == r_target]
         if category:
             res = [e for e in res if e.category.lower() == category.lower()]
         if query:
@@ -131,17 +135,22 @@ class CatalogService:
                 with open(self.plugins_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 for raw in data:
+                    ns = raw.get("namespace", "")
+                    ns_parts = ns.split(".")
+                    cat = raw.get("category") or (ns_parts[1] if len(ns_parts) > 1 else "vision")
+                    subcat1 = raw.get("subcategory1") or (ns_parts[2] if len(ns_parts) > 2 else "")
+
                     entries.append(
                         CatalogEntry(
                             name=raw.get("name", ""),
                             func_name=raw.get("func_name", ""),
-                            namespace=raw.get("namespace", ""),
+                            namespace=ns,
                             version=raw.get("version", "v0.1.0"),
                             description=raw.get("description", ""),
-                            category=raw.get("category", "vision"),
-                            subcategory1=raw.get("subcategory1", "yolo"),
+                            category=cat,
+                            subcategory1=subcat1,
                             license=raw.get("license", "MIT"),
-                            repo="Plugin",
+                            repo=raw.get("repo", "Community"),
                             author=raw.get("author", "Community"),
                             how_to_use=raw.get("how_to_use", ""),
                             params=[
@@ -149,7 +158,7 @@ class CatalogService:
                                 ParamSpec(name="conf", annotation="float", default=0.25),
                             ],
                             response_key="results",
-                            code_snippet=f"from {raw.get('namespace', '')} import {raw.get('func_name', '')}\n\n# Community Plugin: {raw.get('name', '')}\n# Author: {raw.get('author', '')}",
+                            code_snippet=f"from {ns} import {raw.get('func_name', '')}\n\n# Community Plugin: {raw.get('name', '')}\n# Author: {raw.get('author', '')}",
                         )
                     )
             except Exception:
