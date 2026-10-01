@@ -18,6 +18,9 @@ class CatalogEntry(BaseModel):
     version: str = "v1.0"
     description: str = ""
     category: str = "general"
+    subcategory1: str = ""
+    subcategory2: str = ""
+    subcategory3: str = ""
     license: str = "MIT"
     repo: str = "Official"  # "Official" or "Plugin"
     author: str = ""
@@ -50,7 +53,7 @@ class CatalogService:
                     hasher.update(f.read())
         return hasher.hexdigest()
 
-    def get_entries(self, category: str | None = None, repo_type: str | None = None) -> list[CatalogEntry]:
+    def get_entries(self, category: str | None = None, repo_type: str | None = None, query: str | None = None) -> list[CatalogEntry]:
         current_hash = self._compute_file_hash()
         if current_hash != self._cache_hash or not self._entries:
             self._load_and_enrich()
@@ -61,6 +64,18 @@ class CatalogService:
             res = [e for e in res if e.repo.lower() == repo_type.lower()]
         if category:
             res = [e for e in res if e.category.lower() == category.lower()]
+        if query:
+            q = query.lower().strip()
+            res = [
+                e for e in res
+                if q in e.name.lower()
+                or q in e.func_name.lower()
+                or q in e.namespace.lower()
+                or q in e.category.lower()
+                or q in e.subcategory1.lower()
+                or q in e.subcategory2.lower()
+                or q in e.description.lower()
+            ]
         return res
 
     def get_step(self, namespace: str, func_name: str) -> CatalogEntry | None:
@@ -92,6 +107,9 @@ class CatalogService:
                             version=raw.get("version", "v1.0"),
                             description=raw.get("description", ""),
                             category=raw.get("category", "general"),
+                            subcategory1=raw.get("subcategory1", ""),
+                            subcategory2=raw.get("subcategory2", ""),
+                            subcategory3=raw.get("subcategory3", ""),
                             license=raw.get("license", "MIT"),
                             repo="Official",
                             author=raw.get("author", ""),
@@ -101,7 +119,7 @@ class CatalogService:
                                 ParamSpec(name="timeout", annotation="int", default=30),
                             ],
                             response_key="response" if "http" in raw.get("name", "") else "result",
-                            code_snippet=f"from {raw.get('namespace', '')} import {raw.get('func_name', '')}\n\n# Official Step: {raw.get('name', '')}\n# Description: {raw.get('description', '')}",
+                            code_snippet=f"from {raw.get('namespace', '')} import {raw.get('func_name', '')}\n\n# Official Step: {raw.get('name', '')}\n# Category: {raw.get('category', '')} / {raw.get('subcategory1', '')}\n# Description: {raw.get('description', '')}",
                         )
                     )
             except Exception:
@@ -121,6 +139,7 @@ class CatalogService:
                             version=raw.get("version", "v0.1.0"),
                             description=raw.get("description", ""),
                             category=raw.get("category", "vision"),
+                            subcategory1=raw.get("subcategory1", "yolo"),
                             license=raw.get("license", "MIT"),
                             repo="Plugin",
                             author=raw.get("author", "Community"),

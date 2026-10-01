@@ -10,8 +10,12 @@ def list_categories() -> list[str]:
 
 
 @router.get("/steps", response_model=list[CatalogEntry])
-def list_steps(category: str | None = Query(default=None), repo_type: str | None = Query(default=None)) -> list[CatalogEntry]:
-    return catalog_service.get_entries(category=category, repo_type=repo_type)
+def list_steps(
+    category: str | None = Query(default=None),
+    repo_type: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+) -> list[CatalogEntry]:
+    return catalog_service.get_entries(category=category, repo_type=repo_type, query=q)
 
 
 @router.get("/steps/detail", response_model=CatalogEntry)
