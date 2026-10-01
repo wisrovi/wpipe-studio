@@ -13,11 +13,23 @@ interface CatalogStep {
   code_snippet?: string;
 }
 
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  category: "General" | "Architecture" | "Sandbox" | "AI";
+}
+
 export default function App() {
   // Splash Screen state
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [splashProgress, setSplashProgress] = useState<number>(0);
   const [splashFadeOut, setSplashFadeOut] = useState<boolean>(false);
+
+  // FAQ Modal & Accordions state
+  const [showFaqModal, setShowFaqModal] = useState<boolean>(false);
+  const [openFaqId, setOpenFaqId] = useState<string | null>("faq_1");
+  const [faqSearch, setFaqSearch] = useState<string>("");
 
   // Mobile Drawer state
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
@@ -118,23 +130,63 @@ export default function App() {
   const [isDragOverCanvas, setIsDragOverCanvas] = useState<boolean>(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Splash Screen progress timer & fadeout
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSplashProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          setTimeout(() => {
-            setSplashFadeOut(true);
-            setTimeout(() => setShowSplash(false), 500);
-          }, 400);
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 150);
+  // FAQ Items Database
+  const faqList: FaqItem[] = [
+    {
+      id: "faq_1",
+      category: "Sandbox",
+      question: "How does the Docker Sandbox verification loop work?",
+      answer: "When you click 'Dry-Run Verify', WPipe Studio builds a temporary Docker container executing 6 quality gates: syntax check, black/isort formatting, ruff linter, mypy typechecking, pytest unit tests (cov ≥ 60%), and an end-to-end dry_run_pipeline. Only when all gates pass is the microservice ZIP enabled for download.",
+    },
+    {
+      id: "faq_2",
+      category: "Architecture",
+      question: "What are the 3 IR Levels (CanvasIR, SemanticIR, TargetIR)?",
+      answer: "CanvasIR represents the visual graph (nodes, coordinates, connections). SemanticIR parses execution semantics (DAG order, contract reads/writes, merge policy). TargetIR emits the final production microservice files (FastAPI main.py, pipelines.py, Dockerfile, Makefile, tests).",
+    },
+    {
+      id: "faq_3",
+      category: "General",
+      question: "How do I upload custom Python (.py) state files?",
+      answer: "Navigate to the '📁 User' tab in the sidebar and click 'Upload .py File'. Your Python state functions decorated with @step will be parsed and made available to drag onto the canvas as amber-colored custom nodes.",
+    },
+    {
+      id: "faq_4",
+      category: "AI",
+      question: "How do AI Prompts and Developer Notes work?",
+      answer: "Click '✨ + AI Step' to describe a new step in natural language. In the Inspector's '💻 Code & Notes' tab, you can add specific developer instructions that the LLM agent uses during microservice code generation and refinement.",
+    },
+    {
+      id: "faq_5",
+      category: "Architecture",
+      question: "How does the Release Catalog sync with wpipe-steps?",
+      answer: "CatalogService queries the release manifest steps_catalog.json (196 steps) with SHA-256 caching. It never scans the raw filesystem, ensuring that only curated, production-ready steps are exposed in the palette.",
+    },
+  ];
 
-    return () => clearInterval(timer);
+  // Trigger Splash Animation
+  const triggerSplash = () => {
+    setShowSplash(true);
+    setSplashProgress(0);
+    setSplashFadeOut(false);
+
+    let progress = 0;
+    const timer = setInterval(() => {
+      progress += 20;
+      setSplashProgress(progress);
+      if (progress >= 100) {
+        clearInterval(timer);
+        setTimeout(() => {
+          setSplashFadeOut(true);
+          setTimeout(() => setShowSplash(false), 500);
+        }, 500);
+      }
+    }, 200);
+  };
+
+  // Initial Splash Screen load
+  useEffect(() => {
+    triggerSplash();
   }, []);
 
   useEffect(() => {
@@ -270,7 +322,8 @@ export default function App() {
   };
 
   const handleAddFromContextMenu = (type: "condition" | "for" | "parallel" | "ai") => {
-    if (!contextMenuPos) return;
+    const posX = contextMenuPos ? contextMenuPos.x : Math.min(450, 100 + nodes.length * 40);
+    const posY = contextMenuPos ? contextMenuPos.y : Math.min(350, 120 + nodes.length * 30);
     const newId = `node_${nodes.length + 1}`;
 
     if (type === "ai") {
@@ -282,7 +335,7 @@ export default function App() {
     const newNode: CanvasNode = {
       id: newId,
       type: "default",
-      position: { x: contextMenuPos.x, y: contextMenuPos.y },
+      position: { x: posX, y: posY },
       data: {
         label: type === "condition" ? "IF Condition" : type === "for" ? "FOR Loop" : "PARALLEL Branch",
         node_type: type,
@@ -298,6 +351,7 @@ export default function App() {
     setNodes((prev) => [...prev, newNode]);
     setSelectedNode(newNode);
     setContextMenuPos(null);
+    setStatusMessage(`Added ${type.toUpperCase()} logic block to canvas`);
   };
 
   // Toggle node expansion
@@ -509,6 +563,13 @@ export default function App() {
     categoryTree[cat][sub].push(step);
   });
 
+  // Filtered FAQ items
+  const filteredFaqs = faqList.filter((f) => {
+    if (!faqSearch.trim()) return true;
+    const q = faqSearch.toLowerCase();
+    return f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q) || f.category.toLowerCase().includes(q);
+  });
+
   // Helper for origin badge color styling
   const getNodeColorStyle = (origin: StepOrigin | string, repo?: string) => {
     if (origin === "user_imported") {
@@ -528,23 +589,25 @@ export default function App() {
       {/* 5. FULLSCREEN SPLASH LOADER */}
       {showSplash && (
         <div
-          className={`fixed inset-0 z-[9999] bg-[#05070c] flex flex-col items-center justify-center transition-opacity duration-500 ${
+          className={`fixed inset-0 z-[99999] bg-[#05070c] flex flex-col items-center justify-center transition-opacity duration-500 pointer-events-auto ${
             splashFadeOut ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         >
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center font-black text-white text-3xl shadow-2xl logo-pulsing mb-6">
             W
           </div>
-          <h2 className="text-2xl font-extrabold text-gray-100 font-heading tracking-tight mb-2">WPipe Studio</h2>
-          <p className="text-xs text-gray-400 mb-8">Initializing Multi-tenant Canvas & Release Catalog Engine...</p>
+          <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-200 to-emerald-300 font-heading tracking-tight mb-2">
+            WPipe Studio
+          </h2>
+          <p className="text-xs text-gray-400 mb-6">Initializing Multi-tenant Canvas & Release Catalog Engine...</p>
 
-          <div className="w-64 h-1.5 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
+          <div className="w-72 h-1.5 bg-gray-900 rounded-full overflow-hidden border border-gray-800 shadow-inner mb-3">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-200"
+              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 transition-all duration-300"
               style={{ width: `${splashProgress}%` }}
             ></div>
           </div>
-          <span className="text-[10px] font-mono text-gray-500 mt-2">{splashProgress}%</span>
+          <span className="text-[11px] font-mono text-emerald-400 font-bold">{splashProgress}% Complete</span>
         </div>
       )}
 
@@ -562,7 +625,7 @@ export default function App() {
             W
           </div>
           <div>
-            <h1 className="text-lg font-extrabold text-gray-100 font-heading tracking-tight flex items-center gap-2">
+            <h1 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-200 to-emerald-300 font-heading tracking-tight flex items-center gap-2">
               <span>WPipe Studio</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-normal">
                 v2.5.8
@@ -588,11 +651,25 @@ export default function App() {
           </span>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5">
+          <button
+            onClick={() => setShowFaqModal(true)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-800 transition"
+            title="Open Interactive FAQ & Architecture Guide"
+          >
+            ❓ FAQ & Guide
+          </button>
+          <button
+            onClick={triggerSplash}
+            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition"
+            title="Replay Splash Screen Animation"
+          >
+            ✨ Splash
+          </button>
           <button
             onClick={() => setGlobalCompactView(!globalCompactView)}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition"
-            aria-label="Toggle compact LabVIEW view"
+            title="Toggle compact LabVIEW view"
           >
             {globalCompactView ? "👁️ Detailed View" : "👁️ LabVIEW View"}
           </button>
@@ -600,37 +677,15 @@ export default function App() {
             onClick={handleDryRun}
             disabled={dryRunLoading}
             className="btn-glossy px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 text-white transition shadow-md shadow-indigo-600/20 disabled:opacity-50"
-            aria-label="Dry-Run Verify"
           >
-            {dryRunLoading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                Verifying...
-              </span>
-            ) : (
-              "🚀 Dry-Run Verify"
-            )}
+            {dryRunLoading ? "Verifying..." : "🚀 Dry-Run Verify"}
           </button>
           <button
             onClick={handleGenerateZip}
             disabled={zipLoading}
             className="btn-emerald-glossy px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 text-white transition shadow-md shadow-emerald-600/20 disabled:opacity-50"
-            aria-label="Generate ZIP"
           >
-            {zipLoading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                Building...
-              </span>
-            ) : (
-              "📦 Generate ZIP"
-            )}
+            {zipLoading ? "Building..." : "📦 Generate ZIP"}
           </button>
         </div>
       </header>
@@ -646,7 +701,6 @@ export default function App() {
           <button
             onClick={() => setMobileDrawerOpen(false)}
             className="text-gray-400 hover:text-white p-1"
-            aria-label="Close Mobile Menu"
           >
             ✕
           </button>
@@ -670,6 +724,15 @@ export default function App() {
             className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-lg text-xs"
           >
             📦 Generate ZIP
+          </button>
+          <button
+            onClick={() => {
+              setShowFaqModal(true);
+              setMobileDrawerOpen(false);
+            }}
+            className="w-full py-2.5 bg-purple-900 text-purple-200 font-bold rounded-lg text-xs border border-purple-700"
+          >
+            ❓ Help & FAQ Guide
           </button>
           <button
             onClick={() => {
@@ -972,7 +1035,7 @@ export default function App() {
           }}
         >
           {/* Canvas Floating Top Toolbar */}
-          <div className="absolute top-4 left-4 z-10 flex items-center space-x-2 bg-gray-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-800/80 shadow-xl">
+          <div className="absolute top-4 left-4 z-30 flex items-center space-x-2 bg-gray-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-800/80 shadow-xl pointer-events-auto">
             <span className="text-xs font-semibold text-gray-400">DAG Graph:</span>
             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
               <span>✓ Acyclic</span>
@@ -982,31 +1045,39 @@ export default function App() {
             <div className="h-4 w-px bg-gray-800 mx-2"></div>
 
             <button
-              onClick={() => handleAddFromContextMenu("condition")}
-              className="px-2 py-1 bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 rounded text-xs border border-amber-800/80 font-medium"
-              aria-label="Add IF Condition block"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddFromContextMenu("condition");
+              }}
+              className="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-300 rounded text-xs border border-amber-800 font-semibold transition cursor-pointer active:scale-95"
             >
               + IF
             </button>
             <button
-              onClick={() => handleAddFromContextMenu("for")}
-              className="px-2 py-1 bg-sky-950/60 hover:bg-sky-900/80 text-sky-300 rounded text-xs border border-sky-800/80 font-medium"
-              aria-label="Add FOR Loop block"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddFromContextMenu("for");
+              }}
+              className="px-2.5 py-1 bg-sky-950/80 hover:bg-sky-900 text-sky-300 rounded text-xs border border-sky-800 font-semibold transition cursor-pointer active:scale-95"
             >
               + FOR
             </button>
             <button
-              onClick={() => handleAddFromContextMenu("parallel")}
-              className="px-2 py-1 bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 rounded text-xs border border-purple-800/80 font-medium"
-              aria-label="Add PARALLEL branch block"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddFromContextMenu("parallel");
+              }}
+              className="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 text-purple-300 rounded text-xs border border-purple-800 font-semibold transition cursor-pointer active:scale-95"
             >
               + PAR
             </button>
             <button
-              onClick={clearCanvas}
-              className="px-2 py-1 bg-gray-800 hover:bg-rose-950 text-gray-300 hover:text-rose-300 rounded text-xs border border-gray-700 transition"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearCanvas();
+              }}
+              className="px-2.5 py-1 bg-gray-800 hover:bg-rose-950 text-gray-300 hover:text-rose-300 rounded text-xs border border-gray-700 transition cursor-pointer active:scale-95"
               title="Clear all nodes from canvas"
-              aria-label="Clear Canvas"
             >
               🧹 Clear
             </button>
@@ -1126,7 +1197,6 @@ export default function App() {
                           onClick={(e) => toggleNodeExpand(node.id, e)}
                           className="text-[10px] px-1.5 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold border border-gray-700"
                           title={isExpanded ? "Collapse Node" : "Expand LabVIEW View"}
-                          aria-label="Toggle node detail view"
                         >
                           {isExpanded ? "▲" : "▼"}
                         </button>
@@ -1136,7 +1206,6 @@ export default function App() {
                             removeNode(node.id);
                           }}
                           className="text-xs text-rose-400 hover:text-rose-300 p-0.5 rounded hover:bg-rose-950/50"
-                          aria-label="Remove node"
                         >
                           ✕
                         </button>
@@ -1179,7 +1248,7 @@ export default function App() {
               style={{ left: `${contextMenuPos.x}px`, top: `${contextMenuPos.y}px` }}
               className="absolute z-50 bg-gray-900 border border-gray-700 rounded-xl p-2 shadow-2xl space-y-1 text-xs w-48 animate-scaleIn"
             >
-              <div className="px-2 py-1 text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800">
+              <div className="px-2 py-1 text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 font-heading">
                 Add Control Block
               </div>
               <button
@@ -1345,6 +1414,77 @@ export default function App() {
         </aside>
       </div>
 
+      {/* 7. INTERACTIVE FAQ MODAL WITH ACCORDIONS */}
+      {showFaqModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-purple-800/80 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl glass-panel max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div>
+                <h3 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-indigo-300 font-heading">
+                  ❓ Frequently Asked Questions & Architecture Guide
+                </h3>
+                <p className="text-xs text-gray-400">Everything you need to know about WPipe Studio pipelines, IR, and sandbox verification.</p>
+              </div>
+              <button
+                onClick={() => setShowFaqModal(false)}
+                className="text-gray-400 hover:text-white font-bold p-1 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* FAQ Search */}
+            <input
+              type="text"
+              placeholder="🔍 Search FAQ questions (sandbox, IR, docker, custom steps)..."
+              className="w-full bg-gray-950 border border-gray-800 rounded-xl p-2.5 text-xs text-gray-200 focus:outline-none"
+              value={faqSearch}
+              onChange={(e) => setFaqSearch(e.target.value)}
+            />
+
+            {/* Accordion Questions List */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              {filteredFaqs.map((faq) => {
+                const isOpen = openFaqId === faq.id;
+                return (
+                  <div key={faq.id} className="border border-gray-800 rounded-xl bg-gray-950/60 overflow-hidden transition">
+                    <button
+                      onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
+                      className="w-full p-3.5 text-left bg-gray-900/80 hover:bg-gray-850 flex items-center justify-between transition"
+                    >
+                      <span className="text-xs font-bold text-gray-200 font-heading flex items-center gap-2">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-mono">
+                          {faq.category}
+                        </span>
+                        <span>{faq.question}</span>
+                      </span>
+                      <span className={`text-xs text-gray-400 transform transition-transform duration-300 ${isOpen ? "rotate-180 text-emerald-400" : ""}`}>
+                        ▼
+                      </span>
+                    </button>
+
+                    <div className={`accordion-content ${isOpen ? "open" : ""}`}>
+                      <div className="p-3.5 text-xs text-gray-300 bg-gray-950/90 border-t border-gray-800/60 leading-relaxed">
+                        {faq.answer}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t border-gray-800 flex justify-end">
+              <button
+                onClick={() => setShowFaqModal(false)}
+                className="btn-glossy px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold shadow"
+              >
+                Close Guide
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AI Custom Step Creator Modal */}
       {showAiModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -1406,7 +1546,7 @@ export default function App() {
               <h3 className="text-lg font-bold text-gray-100 flex items-center gap-2 font-heading">
                 <span>🛡️ Quality Verification Results</span>
               </h3>
-              <button onClick={() => setVerificationModal(null)} className="text-gray-400 hover:text-white font-bold p-1" aria-label="Close modal">
+              <button onClick={() => setVerificationModal(null)} className="text-gray-400 hover:text-white font-bold p-1">
                 ✕
               </button>
             </div>
