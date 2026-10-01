@@ -35,7 +35,7 @@ export default function App() {
     {
       id: "node_2",
       type: "default",
-      position: { x: 380, y: 150 },
+      position: { x: 360, y: 150 },
       data: {
         label: "Check Status (IF)",
         node_type: "condition",
@@ -76,15 +76,20 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(nodes[0]);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [inspectorTab, setInspectorTab] = useState<"properties" | "code_notes">("properties");
-  
-  // Real-time Search & Subcategory state
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ ai: true, connectivity: true });
+  const [globalCompactView, setGlobalCompactView] = useState<boolean>(true);
 
-  const [statusMessage, setStatusMessage] = useState<string>("Ready — Search steps, drag blocks to canvas or click nodes to expand LabVIEW-style view");
+  // Search & Accordion Tree State
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    security: true,
+    ai: true,
+    connectivity: true,
+  });
+
+  const [statusMessage, setStatusMessage] = useState<string>("Ready — Drag steps to canvas or connect ports");
   const [verificationModal, setVerificationModal] = useState<any | null>(null);
 
-  // Connection & Canvas Context Menu state
+  // Connection & Context Menu state
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -111,7 +116,19 @@ export default function App() {
       });
   }, []);
 
-  // HTML5 Drag & Drop handlers for sidebar items
+  // Category Icon Mapping
+  const getCategoryIcon = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes("ai")) return "🤖";
+    if (cat.includes("sec")) return "🛡️";
+    if (cat.includes("conn")) return "🌐";
+    if (cat.includes("db") || cat.includes("data")) return "🗄️";
+    if (cat.includes("media") || cat.includes("audio") || cat.includes("vision")) return "🎬";
+    if (cat.includes("sys")) return "⚙️";
+    return "📦";
+  };
+
+  // Drag & Drop sidebar handlers
   const handleSidebarDragStart = (e: React.DragEvent, item: { type: "catalog" | "logic" | "user" | "ai"; data: any }) => {
     e.dataTransfer.setData("application/wpipe-node", JSON.stringify(item));
   };
@@ -148,7 +165,7 @@ export default function App() {
           notes: `Official step from ${step.category}${step.subcategory1 ? " / " + step.subcategory1 : ""}`,
         },
       };
-      setStatusMessage(`Dropped '${step.name}' onto canvas`);
+      setStatusMessage(`Added step '${step.name}' to canvas`);
     } else if (item.type === "user") {
       const step: CatalogStep = item.data;
       newNode = {
@@ -166,7 +183,7 @@ export default function App() {
           notes: "User imported python state.",
         },
       };
-      setStatusMessage(`Dropped user state '${step.name}' onto canvas`);
+      setStatusMessage(`Added custom user state '${step.name}'`);
     } else {
       const logicType: "condition" | "parallel" | "for" = item.data;
       newNode = {
@@ -184,7 +201,7 @@ export default function App() {
           merge_policy: "accumulate",
         },
       };
-      setStatusMessage(`Dropped ${logicType.toUpperCase()} node onto canvas`);
+      setStatusMessage(`Added ${logicType.toUpperCase()} control node`);
     }
 
     setNodes((prev) => [...prev, newNode]);
@@ -211,7 +228,6 @@ export default function App() {
   const handleAddFromContextMenu = (type: "condition" | "for" | "parallel" | "ai") => {
     if (!contextMenuPos) return;
     const newId = `node_${nodes.length + 1}`;
-    let newNode: CanvasNode;
 
     if (type === "ai") {
       setShowAiModal(true);
@@ -219,7 +235,7 @@ export default function App() {
       return;
     }
 
-    newNode = {
+    const newNode: CanvasNode = {
       id: newId,
       type: "default",
       position: { x: contextMenuPos.x, y: contextMenuPos.y },
@@ -240,7 +256,7 @@ export default function App() {
     setContextMenuPos(null);
   };
 
-  // Toggle LabVIEW-style node expand / collapse
+  // Toggle node expansion
   const toggleNodeExpand = (nodeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedNodes((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
@@ -306,7 +322,7 @@ export default function App() {
   const handleConnectClick = (nodeId: string) => {
     if (!connectingSourceId) {
       setConnectingSourceId(nodeId);
-      setStatusMessage(`Selected ${nodeId} as connection source. Click target node!`);
+      setStatusMessage(`Source ${nodeId} active. Click target node's 'in' port to connect.`);
     } else if (connectingSourceId === nodeId) {
       setConnectingSourceId(null);
       setStatusMessage("Connection cancelled.");
@@ -339,6 +355,13 @@ export default function App() {
     setEdges((prev) => prev.filter((e) => e.id !== id));
   };
 
+  const clearCanvas = () => {
+    setNodes([]);
+    setEdges([]);
+    setSelectedNode(null);
+    setStatusMessage("Canvas cleared");
+  };
+
   // AI Step Creation Handler
   const handleCreateAiStep = () => {
     if (!aiStepName.trim() || !aiPrompt.trim()) return;
@@ -363,12 +386,12 @@ export default function App() {
     setShowAiModal(false);
     setAiStepName("");
     setAiPrompt("");
-    setStatusMessage(`Created AI Custom Step '${aiStepName}'`);
+    setStatusMessage(`Created AI Step '${aiStepName}'`);
   };
 
   // Dry Run Verification Handler
   const handleDryRun = async () => {
-    setStatusMessage("Executing quality gates & dry-run verification in Docker sandbox...");
+    setStatusMessage("Running 6 quality gates in Docker sandbox...");
     const canvasIr: CanvasIR = { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } };
     try {
       const res = await fetch("/api/v1/pipeline/dry-run", {
@@ -378,7 +401,7 @@ export default function App() {
       });
       const data = await res.json();
       setVerificationModal(data);
-      setStatusMessage("Verification completed: All 6 gates PASSED ✓");
+      setStatusMessage("Verification completed: All gates PASSED ✓");
     } catch (err: any) {
       setStatusMessage(`Verification error: ${err.message}`);
     }
@@ -386,7 +409,7 @@ export default function App() {
 
   // Generate Microservice ZIP Handler
   const handleGenerateZip = async () => {
-    setStatusMessage("Building verified microservice ZIP package...");
+    setStatusMessage("Building production ZIP...");
     const canvasIr: CanvasIR = { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } };
     try {
       const res = await fetch("/api/v1/pipeline/generate", {
@@ -401,7 +424,7 @@ export default function App() {
       a.href = url;
       a.download = "wpipe_microservice.zip";
       a.click();
-      setStatusMessage("Microservice ZIP downloaded successfully!");
+      setStatusMessage("Microservice ZIP downloaded!");
     } catch (err: any) {
       setStatusMessage(`Generate error: ${err.message}`);
     }
@@ -411,10 +434,9 @@ export default function App() {
   const officialSteps = catalog.filter((s) => s.repo === "Official");
   const pluginSteps = catalog.filter((s) => s.repo === "Plugin");
 
-  // Real-time Global Search Filter
   const filterBySearch = (step: CatalogStep) => {
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().strip ? searchQuery.toLowerCase().strip() : searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     return (
       step.name.toLowerCase().includes(q) ||
       step.func_name.toLowerCase().includes(q) ||
@@ -440,74 +462,86 @@ export default function App() {
   // Helper for origin badge color styling
   const getNodeColorStyle = (origin: StepOrigin | string, repo?: string) => {
     if (origin === "user_imported") {
-      return { border: "border-amber-500", bg: "bg-amber-950/40", text: "text-amber-400", badge: "bg-amber-950 border-amber-700 text-amber-300" };
+      return { border: "border-amber-500/80", bg: "bg-amber-950/40", text: "text-amber-400", badge: "bg-amber-950 border-amber-700 text-amber-300" };
     }
     if (origin === "described") {
-      return { border: "border-purple-600", bg: "bg-purple-950/40", text: "text-purple-300", badge: "bg-purple-950 border-purple-700 text-purple-300" };
+      return { border: "border-purple-600/80", bg: "bg-purple-950/40", text: "text-purple-300", badge: "bg-purple-950 border-purple-700 text-purple-300" };
     }
     if (repo === "Plugin" || origin === "plugin") {
-      return { border: "border-emerald-500", bg: "bg-emerald-950/40", text: "text-emerald-400", badge: "bg-emerald-950 border-emerald-700 text-emerald-300" };
+      return { border: "border-emerald-500/80", bg: "bg-emerald-950/40", text: "text-emerald-400", badge: "bg-emerald-950 border-emerald-700 text-emerald-300" };
     }
-    return { border: "border-indigo-600", bg: "bg-indigo-950/40", text: "text-indigo-400", badge: "bg-indigo-950 border-indigo-700 text-indigo-300" };
+    return { border: "border-indigo-600/80", bg: "bg-indigo-950/40", text: "text-indigo-400", badge: "bg-indigo-950 border-indigo-700 text-indigo-300" };
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-gray-950 text-gray-100 font-sans select-none">
+    <div className="flex flex-col h-screen w-screen bg-gray-950 text-gray-100 font-sans select-none overflow-hidden">
       {/* Top Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-900 shadow-md z-20">
+      <header className="flex items-center justify-between px-6 py-2.5 border-b border-gray-800/80 bg-gray-900/90 backdrop-blur-md shadow-lg z-20">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-lg shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center font-black text-white text-lg shadow-md shadow-indigo-600/20">
             W
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-100 tracking-tight">WPipe Studio</h1>
-            <p className="text-xs text-gray-400">Visual Pipeline Canvas & Verified Microservice Generator</p>
+            <h1 className="text-lg font-extrabold text-gray-100 tracking-tight flex items-center gap-2">
+              <span>WPipe Studio</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-normal">
+                v2.5.8
+              </span>
+            </h1>
+            <p className="text-[11px] text-gray-400">Multi-tenant Visual Canvas & Verified Microservice Generator</p>
           </div>
         </div>
 
-        {/* Legend Indicator */}
-        <div className="flex items-center space-x-3 text-xs">
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-800 text-indigo-300 font-medium">
-            <span className="w-2 h-2 rounded-full bg-indigo-500"></span> wpipe-steps
+        {/* Legend Indicator Pills */}
+        <div className="hidden lg:flex items-center space-x-2 text-[11px]">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-800/80 text-indigo-300 font-medium shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-indigo-500"></span> wpipe-steps (196)
           </span>
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-300 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> wpipe-plugins
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 font-medium shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> wpipe-plugins (1)
           </span>
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800 text-amber-300 font-medium">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/60 border border-amber-800/80 text-amber-300 font-medium shadow-sm">
             <span className="w-2 h-2 rounded-full bg-amber-500"></span> User .py
           </span>
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800 text-purple-300 font-medium">
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span> AI New
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-950/60 border border-purple-800/80 text-purple-300 font-medium shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span> AI Described
           </span>
         </div>
 
         <div className="flex items-center space-x-3">
           <button
+            onClick={() => setGlobalCompactView(!globalCompactView)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition"
+            title="Toggle LabVIEW Compact View"
+          >
+            {globalCompactView ? "👁️ Detailed View" : "👁️ LabVIEW View"}
+          </button>
+          <button
             onClick={handleDryRun}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow active:scale-95"
+            className="px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white transition shadow-md shadow-indigo-600/20 active:scale-95"
           >
             🚀 Dry-Run Verify
           </button>
           <button
             onClick={handleGenerateZip}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow active:scale-95"
+            className="px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white transition shadow-md shadow-emerald-600/20 active:scale-95"
           >
             📦 Generate ZIP
           </button>
         </div>
       </header>
 
-      {/* Workspace */}
+      {/* Main Workspace */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Multi-Panel Tabbed Sidebar with Hierarchical Category/Subcategory Tree & Global Search */}
-        <aside className="w-96 bg-gray-900 border-r border-gray-800 flex flex-col z-10">
-          {/* Global Real-Time Search Bar */}
-          <div className="p-3 bg-gray-950 border-b border-gray-800">
+        {/* Sidebar Catalogue */}
+        <aside className="w-96 bg-gray-900/95 border-r border-gray-800/80 flex flex-col z-10 shadow-xl">
+          {/* Real-Time Search Bar */}
+          <div className="p-3 bg-gray-950 border-b border-gray-800/80">
             <div className="relative">
               <input
                 type="text"
                 placeholder="🔍 Search steps, vision, ocr, nmap, waf..."
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition"
+                className="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -523,13 +557,12 @@ export default function App() {
           </div>
 
           {/* Navigation Tabs Header */}
-          <div className="grid grid-cols-5 border-b border-gray-800 bg-gray-950 text-[11px] font-semibold text-gray-400">
+          <div className="grid grid-cols-5 border-b border-gray-800/80 bg-gray-950 text-[11px] font-semibold text-gray-400">
             <button
               onClick={() => setActiveTab("official")}
               className={`py-2.5 text-center border-b-2 transition ${
                 activeTab === "official" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
-              title="Official wpipe-steps"
             >
               📦 Steps
             </button>
@@ -538,7 +571,6 @@ export default function App() {
               className={`py-2.5 text-center border-b-2 transition ${
                 activeTab === "plugins" ? "border-emerald-500 text-emerald-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
-              title="Community wpipe-plugins"
             >
               🔌 Plugins
             </button>
@@ -547,7 +579,6 @@ export default function App() {
               className={`py-2.5 text-center border-b-2 transition ${
                 activeTab === "user" ? "border-amber-500 text-amber-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
-              title="User Uploaded .py States"
             >
               📁 User
             </button>
@@ -556,7 +587,6 @@ export default function App() {
               className={`py-2.5 text-center border-b-2 transition ${
                 activeTab === "ai" ? "border-purple-500 text-purple-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
-              title="AI New States"
             >
               ✨ AI
             </button>
@@ -565,18 +595,17 @@ export default function App() {
               className={`py-2.5 text-center border-b-2 transition ${
                 activeTab === "inuse" ? "border-sky-500 text-sky-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
-              title="Active Pipeline Summary"
             >
               📊 In Use
             </button>
           </div>
 
           {/* Sidebar Tab Contents */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            {/* TAB 1: OFFICIAL STEPS HIERARCHICAL TREE */}
+          <div className="flex-1 p-3.5 overflow-y-auto space-y-4">
+            {/* TAB 1: OFFICIAL STEPS TREE */}
             {activeTab === "official" && (
               <div className="space-y-3">
-                <span className="text-xs font-semibold text-gray-300 uppercase block mb-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
                   Category & Subcategory Tree ({searchedOfficial.length})
                 </span>
 
@@ -588,7 +617,7 @@ export default function App() {
                     const catCount = Object.values(subMap).reduce((acc, list) => acc + list.length, 0);
 
                     return (
-                      <div key={category} className="border border-gray-800 rounded-xl bg-gray-950/60 overflow-hidden">
+                      <div key={category} className="border border-gray-800/80 rounded-xl bg-gray-950/60 overflow-hidden shadow-sm">
                         {/* Category Header Accordion */}
                         <div
                           onClick={() =>
@@ -597,7 +626,7 @@ export default function App() {
                           className="flex items-center justify-between p-2.5 bg-gray-900/90 hover:bg-gray-850 cursor-pointer border-b border-gray-800/60 transition"
                         >
                           <span className="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-2">
-                            <span>{isCatOpen ? "📂" : "📁"}</span>
+                            <span>{getCategoryIcon(category)}</span>
                             <span>{category}</span>
                           </span>
                           <span className="text-[10px] px-2 py-0.5 bg-gray-800 text-gray-400 rounded-full font-mono">
@@ -610,7 +639,7 @@ export default function App() {
                           <div className="p-2 space-y-3">
                             {Object.entries(subMap).map(([subcat, stepsList]) => (
                               <div key={subcat} className="space-y-1.5 pl-2 border-l-2 border-indigo-950">
-                                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
                                   └─ {subcat} ({stepsList.length})
                                 </span>
                                 <div className="space-y-1.5">
@@ -619,7 +648,7 @@ export default function App() {
                                       key={idx}
                                       draggable
                                       onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                                      className="p-2.5 bg-gray-900/80 hover:bg-gray-850 border border-indigo-900/40 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group"
+                                      className="p-2.5 bg-gray-900/90 hover:bg-gray-800 border border-indigo-900/40 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group"
                                     >
                                       <div className="flex items-center justify-between">
                                         <span className="text-xs font-semibold text-indigo-200 group-hover:text-indigo-400">
@@ -653,7 +682,7 @@ export default function App() {
                       key={idx}
                       draggable
                       onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                      className="p-3.5 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-800 hover:border-emerald-500 rounded-xl cursor-grab active:cursor-grabbing transition shadow-md"
+                      className="p-3.5 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-800/80 hover:border-emerald-500 rounded-xl cursor-grab active:cursor-grabbing transition shadow-md"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-bold text-emerald-300">{step.name}</span>
@@ -767,15 +796,44 @@ export default function App() {
             backgroundSize: "24px 24px",
           }}
         >
-          {/* Top Canvas Status */}
-          <div className="absolute top-4 left-4 z-10 flex items-center space-x-3 bg-gray-900/90 backdrop-blur px-3.5 py-2 rounded-xl border border-gray-800 shadow-md">
-            <span className="text-xs font-semibold text-gray-400">Graph DAG:</span>
+          {/* Canvas Floating Top Toolbar */}
+          <div className="absolute top-4 left-4 z-10 flex items-center space-x-2 bg-gray-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-800/80 shadow-xl">
+            <span className="text-xs font-semibold text-gray-400">DAG Graph:</span>
             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
               <span>✓ Acyclic</span>
               <span className="text-gray-500">({nodes.length} Nodes, {edges.length} Connections)</span>
             </span>
+
+            <div className="h-4 w-px bg-gray-800 mx-2"></div>
+
+            <button
+              onClick={() => handleAddFromContextMenu("condition")}
+              className="px-2 py-1 bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 rounded text-xs border border-amber-800/80 font-medium"
+            >
+              + IF
+            </button>
+            <button
+              onClick={() => handleAddFromContextMenu("for")}
+              className="px-2 py-1 bg-sky-950/60 hover:bg-sky-900/80 text-sky-300 rounded text-xs border border-sky-800/80 font-medium"
+            >
+              + FOR
+            </button>
+            <button
+              onClick={() => handleAddFromContextMenu("parallel")}
+              className="px-2 py-1 bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 rounded text-xs border border-purple-800/80 font-medium"
+            >
+              + PAR
+            </button>
+            <button
+              onClick={clearCanvas}
+              className="px-2 py-1 bg-gray-800 hover:bg-rose-950 text-gray-300 hover:text-rose-300 rounded text-xs border border-gray-700 transition"
+              title="Clear all nodes from canvas"
+            >
+              🧹 Clear
+            </button>
+
             {connectingSourceId && (
-              <span className="ml-3 text-xs px-2 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-700 animate-pulse">
+              <span className="ml-2 text-xs px-2 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-700 animate-pulse">
                 Connecting from {connectingSourceId}... Click target node port!
               </span>
             )}
@@ -793,8 +851,7 @@ export default function App() {
               const tgtNode = nodes.find((n) => n.id === edge.target);
               if (!srcNode || !tgtNode) return null;
 
-              const isSrcExpanded = expandedNodes[srcNode.id];
-              const isTgtExpanded = expandedNodes[tgtNode.id];
+              const isSrcExpanded = expandedNodes[srcNode.id] ?? !globalCompactView;
 
               const x1 = srcNode.position.x + (isSrcExpanded ? 240 : 180);
               const y1 = srcNode.position.y + 24;
@@ -820,12 +877,12 @@ export default function App() {
             })}
           </svg>
 
-          {/* Canvas Nodes Layer: LabVIEW-Style Compact Block Pills (Expandable on click) */}
+          {/* Canvas Nodes Layer: LabVIEW-Style Compact Block Cards */}
           <div className="relative w-full h-full z-10">
             {nodes.map((node) => {
               const isSelected = selectedNode?.id === node.id;
               const isConnecting = connectingSourceId === node.id;
-              const isExpanded = expandedNodes[node.id];
+              const isExpanded = expandedNodes[node.id] ?? !globalCompactView;
               const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
 
               return (
@@ -835,13 +892,13 @@ export default function App() {
                   style={{ left: `${node.position.x}px`, top: `${node.position.y}px` }}
                   className={`absolute ${
                     isExpanded ? "w-64" : "w-48"
-                  } bg-gray-900/95 backdrop-blur border ${
+                  } bg-gray-900/95 backdrop-blur-md border ${
                     isConnecting
                       ? "border-amber-400 ring-4 ring-amber-400/30"
                       : isSelected
                       ? `${style.border} ring-2 ring-indigo-500/40 shadow-indigo-500/20`
                       : style.border
-                  } rounded-xl p-2.5 shadow-2xl cursor-move transition-all hover:shadow-lg`}
+                  } rounded-xl p-2.5 shadow-2xl cursor-move transition-all hover:shadow-xl`}
                 >
                   {/* Connection Input Port */}
                   <div
@@ -922,7 +979,7 @@ export default function App() {
             })}
           </div>
 
-          {/* Quick Canvas Action Context Menu */}
+          {/* Canvas Right Click Context Menu */}
           {contextMenuPos && (
             <div
               style={{ left: `${contextMenuPos.x}px`, top: `${contextMenuPos.y}px` }}
@@ -965,7 +1022,7 @@ export default function App() {
           )}
 
           {/* Bottom Status Bar */}
-          <div className="bg-gray-900/90 backdrop-blur border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg">
+          <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg">
             <span>Status: <strong className="text-gray-200">{statusMessage}</strong></span>
             <span>Target Engine: <strong className="text-indigo-400">WPipe v2.5.8</strong></span>
           </div>
