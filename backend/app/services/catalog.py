@@ -34,7 +34,14 @@ class CatalogEntry(BaseModel):
 
 class CatalogService:
     def __init__(self, catalog_path: str | Path | None = None, plugins_path: str | Path | None = None):
-        workspace_root = Path(__file__).resolve().parents[4]
+        import os
+        env_root = os.getenv("WPIPE_WORKSPACE_ROOT")
+        if env_root:
+            workspace_root = Path(env_root)
+        else:
+            parents = Path(__file__).resolve().parents
+            workspace_root = parents[4] if len(parents) > 4 else parents[-1]
+
         if catalog_path is None:
             catalog_path = workspace_root / "wpipe-steps" / "steps_catalog.json"
         if plugins_path is None:
