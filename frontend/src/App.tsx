@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { CanvasNode, CanvasEdge, CanvasIR } from "./lib/ir/schemas";
+import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
 
 interface CatalogStep {
   name: string;
   func_name: string;
   namespace: string;
   category: string;
+  subcategory1?: string;
+  subcategory2?: string;
   description: string;
   repo: string; // "Official" or "Plugin"
   code_snippet?: string;
@@ -16,7 +18,7 @@ export default function App() {
     {
       id: "node_1",
       type: "default",
-      position: { x: 60, y: 120 },
+      position: { x: 80, y: 150 },
       data: {
         label: "HttpRequest",
         node_type: "step",
@@ -26,14 +28,28 @@ export default function App() {
         params: { timeout: 30 },
         contract: { reads: ["url"], writes: ["response"], inferred: "exact" },
         merge_policy: "accumulate",
-        code_snippet: "from wpipe_steps.connectivity.http_request import HttpRequest\n\n# Official Step\nstep = HttpRequest()",
+        code_snippet: "from wpipe_steps.connectivity.http_request import HttpRequest\n\nstep = HttpRequest()",
         notes: "Target API endpoint requires bearer token in header.",
       },
     },
     {
       id: "node_2",
       type: "default",
-      position: { x: 360, y: 120 },
+      position: { x: 380, y: 150 },
+      data: {
+        label: "Check Status (IF)",
+        node_type: "condition",
+        origin: "described",
+        params: {},
+        contract: { reads: ["response"], writes: [], inferred: "exact" },
+        condition_expression: "response.status_code == 200",
+        merge_policy: "accumulate",
+      },
+    },
+    {
+      id: "node_3",
+      type: "default",
+      position: { x: 680, y: 150 },
       data: {
         label: "ImageECamYOLO",
         node_type: "step",
@@ -43,23 +59,8 @@ export default function App() {
         params: { conf: 0.25 },
         contract: { reads: ["image_data"], writes: ["results"], inferred: "exact" },
         merge_policy: "accumulate",
-        code_snippet: "from wpipe_plugins.vision.ecam_yolo import ImageECamYOLO, ECAMConfig\n\n# Community Plugin\nstep = ImageECamYOLO()",
-        notes: "Runs YOLO detection + EigenCAM visualization on input images.",
-      },
-    },
-    {
-      id: "node_3",
-      type: "default",
-      position: { x: 660, y: 120 },
-      data: {
-        label: "CustomPreprocessState",
-        node_type: "step",
-        origin: "user_imported",
-        params: {},
-        contract: { reads: ["raw_image"], writes: ["image_data"], inferred: "exact" },
-        merge_policy: "accumulate",
-        code_snippet: "from wpipe import step\n\n@step\ndef custom_preprocess_state(raw_image: bytes) -> dict:\n    # User uploaded state logic\n    return {'image_data': raw_image}",
-        notes: "Custom image resizing to 640x640 before object detection.",
+        code_snippet: "from wpipe_plugins.vision.ecam_yolo import ImageECamYOLO\n\nstep = ImageECamYOLO()",
+        notes: "Runs YOLO detection + EigenCAM visualization.",
       },
     },
   ]);
@@ -73,13 +74,19 @@ export default function App() {
   const [userStates, setUserStates] = useState<CatalogStep[]>([]);
   const [activeTab, setActiveTab] = useState<"official" | "plugins" | "user" | "ai" | "inuse">("official");
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(nodes[0]);
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [inspectorTab, setInspectorTab] = useState<"properties" | "code_notes">("properties");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [statusMessage, setStatusMessage] = useState<string>("Ready — Explore tabs, drag custom/plugin steps, inspect code & notes");
+  
+  // Real-time Search & Subcategory state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ ai: true, connectivity: true });
+
+  const [statusMessage, setStatusMessage] = useState<string>("Ready — Search steps, drag blocks to canvas or click nodes to expand LabVIEW-style view");
   const [verificationModal, setVerificationModal] = useState<any | null>(null);
 
-  // Connection mode state
+  // Connection & Canvas Context Menu state
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   // AI Prompt Modal state
   const [showAiModal, setShowAiModal] = useState<boolean>(false);
@@ -116,8 +123,8 @@ export default function App() {
     const item = JSON.parse(rawData);
 
     const canvasRect = canvasRef.current?.getBoundingClientRect();
-    const dropX = canvasRect ? Math.max(20, e.clientX - canvasRect.left - 100) : 200;
-    const dropY = canvasRect ? Math.max(20, e.clientY - canvasRect.top - 40) : 200;
+    const dropX = canvasRect ? Math.max(20, e.clientX - canvasRect.left - 80) : 200;
+    const dropY = canvasRect ? Math.max(20, e.clientY - canvasRect.top - 30) : 200;
 
     const newId = `node_${nodes.length + 1}`;
     let newNode: CanvasNode;
@@ -138,10 +145,10 @@ export default function App() {
           contract: { reads: ["input_data"], writes: ["result_data"], inferred: "exact" },
           merge_policy: "accumulate",
           code_snippet: step.code_snippet || `from ${step.namespace} import ${step.func_name}`,
-          notes: `Official step from category: ${step.category}`,
+          notes: `Official step from ${step.category}${step.subcategory1 ? " / " + step.subcategory1 : ""}`,
         },
       };
-      setStatusMessage(`Dropped step '${step.name}' onto canvas`);
+      setStatusMessage(`Dropped '${step.name}' onto canvas`);
     } else if (item.type === "user") {
       const step: CatalogStep = item.data;
       newNode = {
@@ -155,7 +162,7 @@ export default function App() {
           params: {},
           contract: { reads: ["raw_input"], writes: ["custom_output"], inferred: "exact" },
           merge_policy: "accumulate",
-          code_snippet: step.code_snippet || `# Custom User State: ${step.name}\nfrom wpipe import step\n\n@step\ndef ${step.name.lower()}(raw_input):\n    return {'custom_output': raw_input}`,
+          code_snippet: step.code_snippet || `# Custom User State\nfrom wpipe import step`,
           notes: "User imported python state.",
         },
       };
@@ -189,6 +196,56 @@ export default function App() {
     e.dataTransfer.dropEffect = "move";
   };
 
+  // Canvas Right Click Context Menu Handler
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    if (canvasRect) {
+      setContextMenuPos({
+        x: e.clientX - canvasRect.left,
+        y: e.clientY - canvasRect.top,
+      });
+    }
+  };
+
+  const handleAddFromContextMenu = (type: "condition" | "for" | "parallel" | "ai") => {
+    if (!contextMenuPos) return;
+    const newId = `node_${nodes.length + 1}`;
+    let newNode: CanvasNode;
+
+    if (type === "ai") {
+      setShowAiModal(true);
+      setContextMenuPos(null);
+      return;
+    }
+
+    newNode = {
+      id: newId,
+      type: "default",
+      position: { x: contextMenuPos.x, y: contextMenuPos.y },
+      data: {
+        label: type === "condition" ? "IF Condition" : type === "for" ? "FOR Loop" : "PARALLEL Branch",
+        node_type: type,
+        origin: "described",
+        params: {},
+        contract: { reads: [], writes: [], inferred: "exact" },
+        condition_expression: type === "condition" ? "status_code == 200" : undefined,
+        for_iterations: type === "for" ? 5 : undefined,
+        merge_policy: "accumulate",
+      },
+    };
+
+    setNodes((prev) => [...prev, newNode]);
+    setSelectedNode(newNode);
+    setContextMenuPos(null);
+  };
+
+  // Toggle LabVIEW-style node expand / collapse
+  const toggleNodeExpand = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedNodes((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
+  };
+
   // User uploaded .py file handler
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -210,7 +267,7 @@ export default function App() {
       };
 
       setUserStates((prev) => [...prev, newCustomState]);
-      setStatusMessage(`Successfully imported custom Python state file '${file.name}'!`);
+      setStatusMessage(`Imported custom Python state file '${file.name}'!`);
     };
 
     reader.readAsText(file);
@@ -249,7 +306,7 @@ export default function App() {
   const handleConnectClick = (nodeId: string) => {
     if (!connectingSourceId) {
       setConnectingSourceId(nodeId);
-      setStatusMessage(`Selected ${nodeId} as connection source. Click another node to target!`);
+      setStatusMessage(`Selected ${nodeId} as connection source. Click target node!`);
     } else if (connectingSourceId === nodeId) {
       setConnectingSourceId(null);
       setStatusMessage("Connection cancelled.");
@@ -298,7 +355,7 @@ export default function App() {
         contract: { reads: ["input_text"], writes: ["summary_output"], inferred: "exact" },
         merge_policy: "accumulate",
         notes: `AI Step Prompt: ${aiPrompt}`,
-        code_snippet: `# AI Described Step: ${aiStepName}\n# Prompt: ${aiPrompt}\n\nfrom wpipe import step\n\n@step\ndef ${aiStepName.toLowerCase()}(input_text: str) -> dict:\n    # Code generated by LLM agent based on prompt\n    return {'summary_output': input_text}`,
+        code_snippet: `# AI Described Step: ${aiStepName}\n# Prompt: ${aiPrompt}\n\nfrom wpipe import step\n\n@step\ndef ${aiStepName.toLowerCase()}(input_text: str) -> dict:\n    return {'summary_output': input_text}`,
       },
     };
     setNodes((prev) => [...prev, newNode]);
@@ -350,12 +407,35 @@ export default function App() {
     }
   };
 
-  // Catalog Filters
+  // Filtering & Tree Grouping Logic
   const officialSteps = catalog.filter((s) => s.repo === "Official");
   const pluginSteps = catalog.filter((s) => s.repo === "Plugin");
 
-  const categories = Array.from(new Set(officialSteps.map((s) => s.category)));
-  const filteredOfficial = selectedCategory === "all" ? officialSteps : officialSteps.filter((s) => s.category === selectedCategory);
+  // Real-time Global Search Filter
+  const filterBySearch = (step: CatalogStep) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().strip ? searchQuery.toLowerCase().strip() : searchQuery.toLowerCase();
+    return (
+      step.name.toLowerCase().includes(q) ||
+      step.func_name.toLowerCase().includes(q) ||
+      step.category.toLowerCase().includes(q) ||
+      (step.subcategory1 && step.subcategory1.toLowerCase().includes(q)) ||
+      step.description.toLowerCase().includes(q)
+    );
+  };
+
+  const searchedOfficial = officialSteps.filter(filterBySearch);
+  const searchedPlugins = pluginSteps.filter(filterBySearch);
+
+  // Group steps by category and subcategory
+  const categoryTree: Record<string, Record<string, CatalogStep[]>> = {};
+  searchedOfficial.forEach((step) => {
+    const cat = step.category || "general";
+    const sub = step.subcategory1 || "main";
+    if (!categoryTree[cat]) categoryTree[cat] = {};
+    if (!categoryTree[cat][sub]) categoryTree[cat][sub] = [];
+    categoryTree[cat][sub].push(step);
+  });
 
   // Helper for origin badge color styling
   const getNodeColorStyle = (origin: StepOrigin | string, repo?: string) => {
@@ -419,8 +499,29 @@ export default function App() {
 
       {/* Workspace */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Multi-Panel Tabbed Sidebar */}
-        <aside className="w-88 bg-gray-900 border-r border-gray-800 flex flex-col z-10">
+        {/* Multi-Panel Tabbed Sidebar with Hierarchical Category/Subcategory Tree & Global Search */}
+        <aside className="w-96 bg-gray-900 border-r border-gray-800 flex flex-col z-10">
+          {/* Global Real-Time Search Bar */}
+          <div className="p-3 bg-gray-950 border-b border-gray-800">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="🔍 Search steps, vision, ocr, nmap, waf..."
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Navigation Tabs Header */}
           <div className="grid grid-cols-5 border-b border-gray-800 bg-gray-950 text-[11px] font-semibold text-gray-400">
             <button
@@ -472,53 +573,82 @@ export default function App() {
 
           {/* Sidebar Tab Contents */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            {/* TAB 1: OFFICIAL STEPS */}
+            {/* TAB 1: OFFICIAL STEPS HIERARCHICAL TREE */}
             {activeTab === "official" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-300 uppercase">Official Catalogue ({officialSteps.length})</span>
-                  <select
-                    className="bg-gray-800 border border-gray-700 rounded text-xs text-gray-200 px-2 py-1 focus:outline-none"
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  {filteredOfficial.slice(0, 50).map((step, idx) => (
-                    <div
-                      key={idx}
-                      draggable
-                      onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                      className="p-3 bg-gray-800/80 hover:bg-gray-800 border border-indigo-900/50 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-indigo-300">{step.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-indigo-950 text-indigo-300 rounded border border-indigo-800 font-mono">
-                          {step.category}
-                        </span>
+                <span className="text-xs font-semibold text-gray-300 uppercase block mb-2">
+                  Category & Subcategory Tree ({searchedOfficial.length})
+                </span>
+
+                {Object.keys(categoryTree).length === 0 ? (
+                  <p className="text-xs text-gray-500 italic p-2">No matching steps found for '{searchQuery}'</p>
+                ) : (
+                  Object.entries(categoryTree).map(([category, subMap]) => {
+                    const isCatOpen = expandedCategories[category] ?? true;
+                    const catCount = Object.values(subMap).reduce((acc, list) => acc + list.length, 0);
+
+                    return (
+                      <div key={category} className="border border-gray-800 rounded-xl bg-gray-950/60 overflow-hidden">
+                        {/* Category Header Accordion */}
+                        <div
+                          onClick={() =>
+                            setExpandedCategories((prev) => ({ ...prev, [category]: !isCatOpen }))
+                          }
+                          className="flex items-center justify-between p-2.5 bg-gray-900/90 hover:bg-gray-850 cursor-pointer border-b border-gray-800/60 transition"
+                        >
+                          <span className="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-2">
+                            <span>{isCatOpen ? "📂" : "📁"}</span>
+                            <span>{category}</span>
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 bg-gray-800 text-gray-400 rounded-full font-mono">
+                            {catCount}
+                          </span>
+                        </div>
+
+                        {/* Subcategories & Steps */}
+                        {isCatOpen && (
+                          <div className="p-2 space-y-3">
+                            {Object.entries(subMap).map(([subcat, stepsList]) => (
+                              <div key={subcat} className="space-y-1.5 pl-2 border-l-2 border-indigo-950">
+                                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
+                                  └─ {subcat} ({stepsList.length})
+                                </span>
+                                <div className="space-y-1.5">
+                                  {stepsList.map((step, idx) => (
+                                    <div
+                                      key={idx}
+                                      draggable
+                                      onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
+                                      className="p-2.5 bg-gray-900/80 hover:bg-gray-850 border border-indigo-900/40 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-indigo-200 group-hover:text-indigo-400">
+                                          {step.name}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{step.description}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{step.description}</p>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  })
+                )}
               </div>
             )}
 
             {/* TAB 2: PLUGINS */}
             {activeTab === "plugins" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-400 uppercase">Community Plugins ({pluginSteps.length})</span>
-                </div>
+                <span className="text-xs font-semibold text-emerald-400 uppercase block">
+                  Community Plugins ({searchedPlugins.length})
+                </span>
                 <div className="space-y-2">
-                  {pluginSteps.map((step, idx) => (
+                  {searchedPlugins.map((step, idx) => (
                     <div
                       key={idx}
                       draggable
@@ -596,9 +726,7 @@ export default function App() {
             {/* TAB 5: ACTIVE PIPELINE SUMMARY */}
             {activeTab === "inuse" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-sky-400 uppercase">Active Nodes ({nodes.length})</span>
-                </div>
+                <span className="text-xs font-semibold text-sky-400 uppercase block">Active Nodes ({nodes.length})</span>
                 <div className="space-y-2">
                   {nodes.map((node) => {
                     const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
@@ -625,13 +753,14 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Central Canvas */}
+        {/* Central Canvas Workspace */}
         <main
           ref={canvasRef}
           onDrop={handleCanvasDrop}
           onDragOver={handleCanvasDragOver}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
+          onContextMenu={handleCanvasContextMenu}
           className="flex-1 bg-gray-950 p-6 relative overflow-hidden flex flex-col justify-between"
           style={{
             backgroundImage: "radial-gradient(#1f2937 1px, transparent 1px)",
@@ -640,7 +769,7 @@ export default function App() {
         >
           {/* Top Canvas Status */}
           <div className="absolute top-4 left-4 z-10 flex items-center space-x-3 bg-gray-900/90 backdrop-blur px-3.5 py-2 rounded-xl border border-gray-800 shadow-md">
-            <span className="text-xs font-semibold text-gray-400">DAG Status:</span>
+            <span className="text-xs font-semibold text-gray-400">Graph DAG:</span>
             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
               <span>✓ Acyclic</span>
               <span className="text-gray-500">({nodes.length} Nodes, {edges.length} Connections)</span>
@@ -664,10 +793,13 @@ export default function App() {
               const tgtNode = nodes.find((n) => n.id === edge.target);
               if (!srcNode || !tgtNode) return null;
 
-              const x1 = srcNode.position.x + 240;
-              const y1 = srcNode.position.y + 60;
+              const isSrcExpanded = expandedNodes[srcNode.id];
+              const isTgtExpanded = expandedNodes[tgtNode.id];
+
+              const x1 = srcNode.position.x + (isSrcExpanded ? 240 : 180);
+              const y1 = srcNode.position.y + 24;
               const x2 = tgtNode.position.x;
-              const y2 = tgtNode.position.y + 60;
+              const y2 = tgtNode.position.y + 24;
 
               const dx = Math.abs(x2 - x1) * 0.5;
               const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
@@ -688,11 +820,12 @@ export default function App() {
             })}
           </svg>
 
-          {/* Canvas Nodes Layer with Distinct Color Borders */}
+          {/* Canvas Nodes Layer: LabVIEW-Style Compact Block Pills (Expandable on click) */}
           <div className="relative w-full h-full z-10">
             {nodes.map((node) => {
               const isSelected = selectedNode?.id === node.id;
               const isConnecting = connectingSourceId === node.id;
+              const isExpanded = expandedNodes[node.id];
               const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
 
               return (
@@ -700,13 +833,15 @@ export default function App() {
                   key={node.id}
                   onMouseDown={(e) => handleNodeMouseDown(e, node)}
                   style={{ left: `${node.position.x}px`, top: `${node.position.y}px` }}
-                  className={`absolute w-60 bg-gray-900/95 backdrop-blur border ${
+                  className={`absolute ${
+                    isExpanded ? "w-64" : "w-48"
+                  } bg-gray-900/95 backdrop-blur border ${
                     isConnecting
                       ? "border-amber-400 ring-4 ring-amber-400/30"
                       : isSelected
                       ? `${style.border} ring-2 ring-indigo-500/40 shadow-indigo-500/20`
                       : style.border
-                  } rounded-xl p-3.5 shadow-2xl cursor-move transition-shadow hover:shadow-lg`}
+                  } rounded-xl p-2.5 shadow-2xl cursor-move transition-all hover:shadow-lg`}
                 >
                   {/* Connection Input Port */}
                   <div
@@ -715,7 +850,7 @@ export default function App() {
                       if (connectingSourceId) handleConnectClick(node.id);
                     }}
                     title="Input Connection Port"
-                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[10px] text-white font-bold shadow"
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
                   >
                     in
                   </div>
@@ -727,18 +862,25 @@ export default function App() {
                       handleConnectClick(node.id);
                     }}
                     title="Output Connection Port"
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[10px] text-white font-bold shadow"
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
                   >
                     out
                   </div>
 
-                  {/* Header Badge */}
-                  <div className="flex items-center justify-between border-b border-gray-800 pb-2 mb-2">
-                    <span className="text-[10px] font-mono text-gray-400">{node.id}</span>
+                  {/* LabVIEW Compact Header Pill */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 truncate">
+                      <span className={`text-xs font-bold truncate ${style.text}`}>{node.data.label}</span>
+                    </div>
+
                     <div className="flex items-center space-x-1">
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${style.badge}`}>
-                        {node.data.origin}
-                      </span>
+                      <button
+                        onClick={(e) => toggleNodeExpand(node.id, e)}
+                        className="text-[10px] px-1.5 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold border border-gray-700"
+                        title={isExpanded ? "Collapse Node" : "Expand LabVIEW View"}
+                      >
+                        {isExpanded ? "▲" : "▼"}
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -751,25 +893,76 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Title & Function */}
-                  <h3 className={`font-bold text-sm ${style.text}`}>{node.data.label}</h3>
-                  <p className="text-[11px] font-mono text-gray-400 truncate mb-2">
-                    {node.data.func_name || node.data.node_type}
-                  </p>
+                  {/* Expanded LabVIEW Detail Card */}
+                  {isExpanded && (
+                    <div className="mt-2.5 pt-2 border-t border-gray-800/80 space-y-1.5 text-[11px] animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 font-mono text-[10px]">{node.id}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${style.badge}`}>
+                          {node.data.origin}
+                        </span>
+                      </div>
 
-                  {/* Contract summary */}
-                  <div className="space-y-0.5 text-[11px] text-gray-400 border-t border-gray-800/80 pt-2">
-                    <div>
-                      <span className="text-gray-500">Reads:</span> {node.data.contract.reads.join(", ") || "none"}
+                      <p className="text-[10px] font-mono text-gray-400 truncate">
+                        {node.data.func_name || node.data.node_type}
+                      </p>
+
+                      <div className="space-y-0.5 text-gray-400 pt-1 border-t border-gray-800/50">
+                        <div>
+                          <span className="text-gray-500">In:</span> {node.data.contract.reads.join(", ") || "none"}
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Out:</span> {node.data.contract.writes.join(", ") || "none"}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Writes:</span> {node.data.contract.writes.join(", ") || "none"}
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
           </div>
+
+          {/* Quick Canvas Action Context Menu */}
+          {contextMenuPos && (
+            <div
+              style={{ left: `${contextMenuPos.x}px`, top: `${contextMenuPos.y}px` }}
+              className="absolute z-50 bg-gray-900 border border-gray-700 rounded-xl p-2 shadow-2xl space-y-1 text-xs w-48 animate-scaleIn"
+            >
+              <div className="px-2 py-1 text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800">
+                Add Control Block
+              </div>
+              <button
+                onClick={() => handleAddFromContextMenu("condition")}
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-amber-950/50 text-amber-300 font-semibold"
+              >
+                🔀 Add IF Condition
+              </button>
+              <button
+                onClick={() => handleAddFromContextMenu("for")}
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-sky-950/50 text-sky-300 font-semibold"
+              >
+                🔁 Add FOR Loop
+              </button>
+              <button
+                onClick={() => handleAddFromContextMenu("parallel")}
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-purple-950/50 text-purple-300 font-semibold"
+              >
+                ⚡ Add PARALLEL Branch
+              </button>
+              <button
+                onClick={() => handleAddFromContextMenu("ai")}
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-purple-900/50 text-purple-200 font-semibold border-t border-gray-800 pt-1.5"
+              >
+                ✨ Create AI Step...
+              </button>
+              <button
+                onClick={() => setContextMenuPos(null)}
+                className="w-full text-center px-2 py-1 rounded bg-gray-800 text-gray-400 hover:text-white mt-1"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           {/* Bottom Status Bar */}
           <div className="bg-gray-900/90 backdrop-blur border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg">
@@ -778,7 +971,7 @@ export default function App() {
           </div>
         </main>
 
-        {/* Right Inspector & Code/Notes Viewer Panel */}
+        {/* Right Inspector Panel */}
         <aside className="w-88 bg-gray-900 border-l border-gray-800 flex flex-col z-10">
           <div className="grid grid-cols-2 border-b border-gray-800 bg-gray-950 text-xs font-semibold text-gray-400">
             <button
