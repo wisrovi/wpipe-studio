@@ -1,1 +1,1 @@
-# wpipe-n8n
+# wpipe-studio
