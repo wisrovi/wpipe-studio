@@ -104,8 +104,9 @@ export default function App() {
   const [inspectorTab, setInspectorTab] = useState<"properties" | "code_notes">("properties");
   const [globalCompactView, setGlobalCompactView] = useState<boolean>(true);
 
-  // Search & Accordion Tree State
+  // Search & Filter State
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     security: true,
     ai: true,
@@ -582,8 +583,19 @@ export default function App() {
   const officialSteps = catalog.filter((s) => s.repo === "Official");
   const pluginSteps = catalog.filter((s) => s.repo === "Plugin");
 
-  // Advanced Global Multi-Field Search Filter
+  // Unique categories list for dropdown filter
+  const availableCategories = Array.from(new Set(catalog.map((s) => s.category).filter(Boolean)));
+
+  // Advanced Global Multi-Field Search & Category Filter
   const filterBySearch = (step: CatalogStep) => {
+    // 1. Category Dropdown Filter
+    if (selectedCategoryFilter !== "ALL") {
+      if (step.category.toLowerCase() !== selectedCategoryFilter.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 2. Search Query Text Filter
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -817,8 +829,8 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Catalogue */}
         <aside className="w-96 bg-gray-900/95 border-r border-gray-800/80 flex flex-col z-10 shadow-xl glass-panel">
-          {/* Real-Time Search Bar */}
-          <div className="p-3 bg-gray-950 border-b border-gray-800/80">
+          {/* Real-Time Search & Category Filter Bar */}
+          <div className="p-3 bg-gray-950 border-b border-gray-800/80 space-y-2">
             <div className="relative">
               <input
                 type="text"
@@ -835,6 +847,22 @@ export default function App() {
                   ✕
                 </button>
               )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <label className="text-[10px] font-semibold text-gray-400 uppercase font-heading">Filter Category:</label>
+              <select
+                value={selectedCategoryFilter}
+                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                className="flex-1 bg-gray-900 border border-gray-700/80 rounded-lg py-1 px-2 text-xs text-indigo-300 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">All Categories ({catalog.length})</option>
+                {availableCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat.toUpperCase()}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
