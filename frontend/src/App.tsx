@@ -162,6 +162,12 @@ export default function App() {
       question: "How does the Release Catalog sync with wpipe-steps?",
       answer: "CatalogService queries the release manifest steps_catalog.json (196 steps) with SHA-256 caching. It never scans the raw filesystem, ensuring that only curated, production-ready steps are exposed in the palette.",
     },
+    {
+      id: "faq_6",
+      category: "General",
+      question: "How do I connect, disconnect, or insert IF / FOR blocks between nodes?",
+      answer: "1. To connect: Click the 'out' port on a source node, then click the 'in' port on the target node. 2. To disconnect: Hover over any connection cable and click the red '✕' button or click the cable directly. 3. To insert an IF/FOR block: Hover over the connection cable between two nodes and click '+IF', or use the '+ IF' button on the top toolbar.",
+    },
   ];
 
   // Trigger Splash Animation
@@ -451,6 +457,44 @@ export default function App() {
 
   const removeEdge = (id: string) => {
     setEdges((prev) => prev.filter((e) => e.id !== id));
+    setStatusMessage(`Disconnected edge ${id}`);
+  };
+
+  // Insert a control block (e.g. IF) directly between an existing edge connection
+  const insertNodeOnEdge = (edge: CanvasEdge, logicType: "condition" | "for" | "parallel") => {
+    const srcNode = nodes.find((n) => n.id === edge.source);
+    const tgtNode = nodes.find((n) => n.id === edge.target);
+    if (!srcNode || !tgtNode) return;
+
+    const midX = Math.round((srcNode.position.x + tgtNode.position.x) / 2);
+    const midY = Math.round((srcNode.position.y + tgtNode.position.y) / 2);
+
+    const newId = `node_${nodes.length + 1}`;
+    const newNode: CanvasNode = {
+      id: newId,
+      type: "default",
+      position: { x: midX, y: midY },
+      data: {
+        label: logicType === "condition" ? "IF Condition" : logicType === "for" ? "FOR Loop" : "PARALLEL Branch",
+        node_type: logicType,
+        origin: "described",
+        params: {},
+        contract: { reads: [], writes: [], inferred: "exact" },
+        condition_expression: logicType === "condition" ? "status_code == 200" : undefined,
+        for_iterations: logicType === "for" ? 5 : undefined,
+        merge_policy: "accumulate",
+      },
+    };
+
+    // Remove old edge, add new node, add 2 new edges (src -> newNode -> tgt)
+    setEdges((prev) => [
+      ...prev.filter((e) => e.id !== edge.id),
+      { id: `e_${edge.source}_${newId}`, source: edge.source, target: newId },
+      { id: `e_${newId}_${edge.target}`, source: newId, target: edge.target },
+    ]);
+    setNodes((prev) => [...prev, newNode]);
+    setSelectedNode(newNode);
+    setStatusMessage(`Inserted ${logicType.toUpperCase()} between ${srcNode.data.label} and ${tgtNode.data.label}`);
   };
 
   const clearCanvas = () => {
@@ -538,20 +582,43 @@ export default function App() {
   const officialSteps = catalog.filter((s) => s.repo === "Official");
   const pluginSteps = catalog.filter((s) => s.repo === "Plugin");
 
+  // Advanced Global Multi-Field Search Filter
   const filterBySearch = (step: CatalogStep) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
       step.name.toLowerCase().includes(q) ||
       step.func_name.toLowerCase().includes(q) ||
-      step.category.toLowerCase().includes(q) ||
+      (step.namespace && step.namespace.toLowerCase().includes(q)) ||
+      (step.category && step.category.toLowerCase().includes(q)) ||
       (step.subcategory1 && step.subcategory1.toLowerCase().includes(q)) ||
-      step.description.toLowerCase().includes(q)
+      (step.subcategory2 && step.subcategory2.toLowerCase().includes(q)) ||
+      (step.description && step.description.toLowerCase().includes(q)) ||
+      (step.code_snippet && step.code_snippet.toLowerCase().includes(q))
     );
   };
 
   const searchedOfficial = officialSteps.filter(filterBySearch);
   const searchedPlugins = pluginSteps.filter(filterBySearch);
+  const searchedUser = userStates.filter(filterBySearch);
+
+  // Auto-expand categories and switch tabs if matching results are found elsewhere
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const allCatKeys: Record<string, boolean> = {};
+      catalog.forEach((s) => {
+        if (s.category) allCatKeys[s.category] = true;
+      });
+      setExpandedCategories(allCatKeys);
+
+      // Auto-switch tab if current tab has 0 matches but another tab has results
+      if (activeTab === "official" && searchedOfficial.length === 0 && searchedPlugins.length > 0) {
+        setActiveTab("plugins");
+      } else if (activeTab === "plugins" && searchedPlugins.length === 0 && searchedOfficial.length > 0) {
+        setActiveTab("official");
+      }
+    }
+  }, [searchQuery, catalog, searchedOfficial.length, searchedPlugins.length]);
 
   // Group steps by category and subcategory
   const categoryTree: Record<string, Record<string, CatalogStep[]>> = {};
@@ -775,27 +842,42 @@ export default function App() {
           <div className="grid grid-cols-5 border-b border-gray-800/80 bg-gray-950 text-[11px] font-semibold text-gray-400">
             <button
               onClick={() => setActiveTab("official")}
-              className={`py-2.5 text-center border-b-2 transition ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
                 activeTab === "official" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              📦 Steps
+              <span>📦 Steps</span>
+              {searchQuery && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
+                  {searchedOfficial.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("plugins")}
-              className={`py-2.5 text-center border-b-2 transition ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
                 activeTab === "plugins" ? "border-emerald-500 text-emerald-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              🔌 Plugins
+              <span>🔌 Plugins</span>
+              {searchQuery && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">
+                  {searchedPlugins.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("user")}
-              className={`py-2.5 text-center border-b-2 transition ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
                 activeTab === "user" ? "border-amber-500 text-amber-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              📁 User
+              <span>📁 User</span>
+              {searchQuery && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-mono">
+                  {searchedUser.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("ai")}
@@ -1111,17 +1193,54 @@ export default function App() {
               const dx = Math.abs(x2 - x1) * 0.5;
               const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 
+              const midX = (x1 + x2) / 2;
+              const midY = (y1 + y2) / 2;
+
               return (
                 <g key={edge.id} className="group pointer-events-auto">
+                  {/* Invisible thicker path for easier hover/clicking */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="16"
+                    className="cursor-pointer"
+                    onClick={() => removeEdge(edge.id)}
+                  />
+                  {/* Visible connection cable */}
                   <path
                     d={pathD}
                     fill="none"
                     stroke="#6366f1"
                     strokeWidth="3"
                     markerEnd="url(#arrow)"
-                    className="hover:stroke-rose-400 cursor-pointer transition-all"
-                    onClick={() => removeEdge(edge.id)}
+                    className="group-hover:stroke-rose-400 transition-all"
                   />
+                  {/* Wire Quick Action Tooltip Button (Delete connection or Insert IF) */}
+                  <foreignObject x={midX - 36} y={midY - 14} width="72" height="28" className="overflow-visible">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1 bg-gray-900/95 border border-gray-700 rounded-full px-1.5 py-0.5 shadow-lg">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          insertNodeOnEdge(edge, "condition");
+                        }}
+                        className="text-[9px] px-1 bg-amber-950 hover:bg-amber-900 text-amber-300 rounded font-bold border border-amber-800"
+                        title="Insert IF condition block between these nodes"
+                      >
+                        +IF
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeEdge(edge.id);
+                        }}
+                        className="text-[10px] text-rose-400 hover:text-rose-200 px-1 font-bold"
+                        title="Disconnect cable (Delete Connection)"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </foreignObject>
                 </g>
               );
             })}
