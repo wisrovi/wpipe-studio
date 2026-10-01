@@ -24,6 +24,8 @@ export const NodeDataSchema = z.object({
   condition_expression: z.string().nullable().optional(),
   for_iterations: z.number().nullable().optional(),
   merge_policy: z.enum(["accumulate", "last_wins"]).default("accumulate"),
+  notes: z.string().nullable().optional(),
+  code_snippet: z.string().nullable().optional(),
 });
 export type NodeData = z.infer<typeof NodeDataSchema>;
 

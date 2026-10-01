@@ -10,8 +10,8 @@ def list_categories() -> list[str]:
 
 
 @router.get("/steps", response_model=list[CatalogEntry])
-def list_steps(category: str | None = Query(default=None)) -> list[CatalogEntry]:
-    return catalog_service.get_entries(category=category)
+def list_steps(category: str | None = Query(default=None), repo_type: str | None = Query(default=None)) -> list[CatalogEntry]:
+    return catalog_service.get_entries(category=category, repo_type=repo_type)
 
 
 @router.get("/steps/detail", response_model=CatalogEntry)
@@ -25,8 +25,11 @@ def get_step_detail(namespace: str, func_name: str) -> CatalogEntry:
 @router.get("/stats")
 def catalog_stats() -> dict[str, int]:
     entries = catalog_service.get_entries()
-    categories = catalog_service.get_categories()
+    official = catalog_service.get_entries(repo_type="Official")
+    plugins = catalog_service.get_entries(repo_type="Plugin")
     return {
         "total_steps": len(entries),
-        "total_categories": len(categories),
+        "official_steps": len(official),
+        "plugin_steps": len(plugins),
+        "total_categories": len(catalog_service.get_categories()),
     }

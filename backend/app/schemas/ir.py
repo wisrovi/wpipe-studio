@@ -33,6 +33,8 @@ class NodeData(BaseModel):
     condition_expression: str | None = None
     for_iterations: int | None = None
     merge_policy: Literal["accumulate", "last_wins"] = "accumulate"
+    notes: str | None = None
+    code_snippet: str | None = None
 
 
 class Position(BaseModel):
