@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
+import { CanvasNode, CanvasEdge, CanvasIR } from "./lib/ir/schemas";
 
 interface CatalogStep {
   name: string;
@@ -7,6 +7,8 @@ interface CatalogStep {
   namespace: string;
   category: string;
   description: string;
+  repo: string; // "Official" or "Plugin"
+  code_snippet?: string;
 }
 
 export default function App() {
@@ -14,7 +16,7 @@ export default function App() {
     {
       id: "node_1",
       type: "default",
-      position: { x: 80, y: 120 },
+      position: { x: 60, y: 120 },
       data: {
         label: "HttpRequest",
         node_type: "step",
@@ -24,35 +26,40 @@ export default function App() {
         params: { timeout: 30 },
         contract: { reads: ["url"], writes: ["response"], inferred: "exact" },
         merge_policy: "accumulate",
+        code_snippet: "from wpipe_steps.connectivity.http_request import HttpRequest\n\n# Official Step\nstep = HttpRequest()",
+        notes: "Target API endpoint requires bearer token in header.",
       },
     },
     {
       id: "node_2",
       type: "default",
-      position: { x: 380, y: 120 },
+      position: { x: 360, y: 120 },
       data: {
-        label: "Check Status (IF)",
-        node_type: "condition",
-        origin: "described",
-        params: {},
-        contract: { reads: ["response"], writes: [], inferred: "exact" },
-        condition_expression: "response.status_code == 200",
+        label: "ImageECamYOLO",
+        node_type: "step",
+        namespace: "wpipe_plugins.vision.ecam_yolo",
+        func_name: "ImageECamYOLO",
+        origin: "catalog",
+        params: { conf: 0.25 },
+        contract: { reads: ["image_data"], writes: ["results"], inferred: "exact" },
         merge_policy: "accumulate",
+        code_snippet: "from wpipe_plugins.vision.ecam_yolo import ImageECamYOLO, ECAMConfig\n\n# Community Plugin\nstep = ImageECamYOLO()",
+        notes: "Runs YOLO detection + EigenCAM visualization on input images.",
       },
     },
     {
       id: "node_3",
       type: "default",
-      position: { x: 680, y: 120 },
+      position: { x: 660, y: 120 },
       data: {
-        label: "WafFilter",
+        label: "CustomPreprocessState",
         node_type: "step",
-        namespace: "wpipe_steps.security.waf",
-        func_name: "WafFilterStep",
-        origin: "catalog",
+        origin: "user_imported",
         params: {},
-        contract: { reads: ["response"], writes: ["clean_response"], inferred: "exact" },
+        contract: { reads: ["raw_image"], writes: ["image_data"], inferred: "exact" },
         merge_policy: "accumulate",
+        code_snippet: "from wpipe import step\n\n@step\ndef custom_preprocess_state(raw_image: bytes) -> dict:\n    # User uploaded state logic\n    return {'image_data': raw_image}",
+        notes: "Custom image resizing to 640x640 before object detection.",
       },
     },
   ]);
@@ -63,9 +70,12 @@ export default function App() {
   ]);
 
   const [catalog, setCatalog] = useState<CatalogStep[]>([]);
+  const [userStates, setUserStates] = useState<CatalogStep[]>([]);
+  const [activeTab, setActiveTab] = useState<"official" | "plugins" | "user" | "ai" | "inuse">("official");
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(nodes[0]);
+  const [inspectorTab, setInspectorTab] = useState<"properties" | "code_notes">("properties");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [statusMessage, setStatusMessage] = useState<string>("Ready — Drag steps or click 'Connect' to build pipelines");
+  const [statusMessage, setStatusMessage] = useState<string>("Ready — Explore tabs, drag custom/plugin steps, inspect code & notes");
   const [verificationModal, setVerificationModal] = useState<any | null>(null);
 
   // Connection mode state
@@ -95,7 +105,7 @@ export default function App() {
   }, []);
 
   // HTML5 Drag & Drop handlers for sidebar items
-  const handleSidebarDragStart = (e: React.DragEvent, item: { type: "catalog" | "logic" | "ai"; data: any }) => {
+  const handleSidebarDragStart = (e: React.DragEvent, item: { type: "catalog" | "logic" | "user" | "ai"; data: any }) => {
     e.dataTransfer.setData("application/wpipe-node", JSON.stringify(item));
   };
 
@@ -127,9 +137,29 @@ export default function App() {
           params: {},
           contract: { reads: ["input_data"], writes: ["result_data"], inferred: "exact" },
           merge_policy: "accumulate",
+          code_snippet: step.code_snippet || `from ${step.namespace} import ${step.func_name}`,
+          notes: `Official step from category: ${step.category}`,
         },
       };
       setStatusMessage(`Dropped step '${step.name}' onto canvas`);
+    } else if (item.type === "user") {
+      const step: CatalogStep = item.data;
+      newNode = {
+        id: newId,
+        type: "default",
+        position: { x: dropX, y: dropY },
+        data: {
+          label: step.name,
+          node_type: "step",
+          origin: "user_imported",
+          params: {},
+          contract: { reads: ["raw_input"], writes: ["custom_output"], inferred: "exact" },
+          merge_policy: "accumulate",
+          code_snippet: step.code_snippet || `# Custom User State: ${step.name}\nfrom wpipe import step\n\n@step\ndef ${step.name.lower()}(raw_input):\n    return {'custom_output': raw_input}`,
+          notes: "User imported python state.",
+        },
+      };
+      setStatusMessage(`Dropped user state '${step.name}' onto canvas`);
     } else {
       const logicType: "condition" | "parallel" | "for" = item.data;
       newNode = {
@@ -159,7 +189,34 @@ export default function App() {
     e.dataTransfer.dropEffect = "move";
   };
 
-  // Canvas internal node repositioning handlers
+  // User uploaded .py file handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const stateName = file.name.replace(/\.py$/, "");
+      const newCustomState: CatalogStep = {
+        name: stateName,
+        func_name: stateName,
+        namespace: `user_states.${stateName}`,
+        category: "User Uploaded",
+        description: `Uploaded custom Python state file: ${file.name}`,
+        repo: "User",
+        code_snippet: content,
+      };
+
+      setUserStates((prev) => [...prev, newCustomState]);
+      setStatusMessage(`Successfully imported custom Python state file '${file.name}'!`);
+    };
+
+    reader.readAsText(file);
+  };
+
+  // Canvas node position drag handlers
   const handleNodeMouseDown = (e: React.MouseEvent, node: CanvasNode) => {
     e.stopPropagation();
     setSelectedNode(node);
@@ -188,7 +245,7 @@ export default function App() {
     setDraggingNodeId(null);
   };
 
-  // Interactive Node Connection Handler
+  // Connect Nodes Handler
   const handleConnectClick = (nodeId: string) => {
     if (!connectingSourceId) {
       setConnectingSourceId(nodeId);
@@ -202,7 +259,6 @@ export default function App() {
         source: connectingSourceId,
         target: nodeId,
       };
-      // Prevent duplicate edges
       if (!edges.some((e) => e.source === connectingSourceId && e.target === nodeId)) {
         setEdges((prev) => [...prev, newEdge]);
         setStatusMessage(`Connected ${connectingSourceId} ➔ ${nodeId}`);
@@ -226,14 +282,14 @@ export default function App() {
     setEdges((prev) => prev.filter((e) => e.id !== id));
   };
 
-  // AI Custom Step Creator Handler
+  // AI Step Creation Handler
   const handleCreateAiStep = () => {
     if (!aiStepName.trim() || !aiPrompt.trim()) return;
     const newId = `node_${nodes.length + 1}`;
     const newNode: CanvasNode = {
       id: newId,
       type: "default",
-      position: { x: 300, y: 250 },
+      position: { x: 300, y: 220 },
       data: {
         label: aiStepName,
         node_type: "step",
@@ -241,6 +297,8 @@ export default function App() {
         params: { prompt: aiPrompt },
         contract: { reads: ["input_text"], writes: ["summary_output"], inferred: "exact" },
         merge_policy: "accumulate",
+        notes: `AI Step Prompt: ${aiPrompt}`,
+        code_snippet: `# AI Described Step: ${aiStepName}\n# Prompt: ${aiPrompt}\n\nfrom wpipe import step\n\n@step\ndef ${aiStepName.toLowerCase()}(input_text: str) -> dict:\n    # Code generated by LLM agent based on prompt\n    return {'summary_output': input_text}`,
       },
     };
     setNodes((prev) => [...prev, newNode]);
@@ -248,7 +306,7 @@ export default function App() {
     setShowAiModal(false);
     setAiStepName("");
     setAiPrompt("");
-    setStatusMessage(`Created AI Custom Step '${aiStepName}' (will be generated by LLM agent)`);
+    setStatusMessage(`Created AI Custom Step '${aiStepName}'`);
   };
 
   // Dry Run Verification Handler
@@ -292,12 +350,30 @@ export default function App() {
     }
   };
 
-  const categories = Array.from(new Set(catalog.map((s) => s.category)));
-  const filteredCatalog = selectedCategory === "all" ? catalog : catalog.filter((s) => s.category === selectedCategory);
+  // Catalog Filters
+  const officialSteps = catalog.filter((s) => s.repo === "Official");
+  const pluginSteps = catalog.filter((s) => s.repo === "Plugin");
+
+  const categories = Array.from(new Set(officialSteps.map((s) => s.category)));
+  const filteredOfficial = selectedCategory === "all" ? officialSteps : officialSteps.filter((s) => s.category === selectedCategory);
+
+  // Helper for origin badge color styling
+  const getNodeColorStyle = (origin: StepOrigin | string, repo?: string) => {
+    if (origin === "user_imported") {
+      return { border: "border-amber-500", bg: "bg-amber-950/40", text: "text-amber-400", badge: "bg-amber-950 border-amber-700 text-amber-300" };
+    }
+    if (origin === "described") {
+      return { border: "border-purple-600", bg: "bg-purple-950/40", text: "text-purple-300", badge: "bg-purple-950 border-purple-700 text-purple-300" };
+    }
+    if (repo === "Plugin" || origin === "plugin") {
+      return { border: "border-emerald-500", bg: "bg-emerald-950/40", text: "text-emerald-400", badge: "bg-emerald-950 border-emerald-700 text-emerald-300" };
+    }
+    return { border: "border-indigo-600", bg: "bg-indigo-950/40", text: "text-indigo-400", badge: "bg-indigo-950 border-indigo-700 text-indigo-300" };
+  };
 
   return (
     <div className="flex flex-col h-screen w-screen bg-gray-950 text-gray-100 font-sans select-none">
-      {/* Top Navigation Header */}
+      {/* Top Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-900 shadow-md z-20">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-lg shadow-sm">
@@ -309,111 +385,247 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
-            <span className="w-2 h-2 mr-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            API v1 Active
+        {/* Legend Indicator */}
+        <div className="flex items-center space-x-3 text-xs">
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-800 text-indigo-300 font-medium">
+            <span className="w-2 h-2 rounded-full bg-indigo-500"></span> wpipe-steps
           </span>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-300 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> wpipe-plugins
+          </span>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800 text-amber-300 font-medium">
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span> User .py
+          </span>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800 text-purple-300 font-medium">
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span> AI New
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-3">
           <button
             onClick={handleDryRun}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow active:scale-95"
+            className="px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow active:scale-95"
           >
             🚀 Dry-Run Verify
           </button>
           <button
             onClick={handleGenerateZip}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow active:scale-95"
+            className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow active:scale-95"
           >
             📦 Generate ZIP
           </button>
         </div>
       </header>
 
-      {/* Main Workspace */}
+      {/* Workspace */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar Palette */}
-        <aside className="w-80 bg-gray-900 border-r border-gray-800 flex flex-col p-4 space-y-4 z-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Palette & Catalog</h2>
+        {/* Multi-Panel Tabbed Sidebar */}
+        <aside className="w-88 bg-gray-900 border-r border-gray-800 flex flex-col z-10">
+          {/* Navigation Tabs Header */}
+          <div className="grid grid-cols-5 border-b border-gray-800 bg-gray-950 text-[11px] font-semibold text-gray-400">
             <button
-              onClick={() => setShowAiModal(true)}
-              className="px-2.5 py-1 text-xs font-bold bg-purple-900 hover:bg-purple-800 text-purple-200 rounded-md border border-purple-700 transition shadow"
+              onClick={() => setActiveTab("official")}
+              className={`py-2.5 text-center border-b-2 transition ${
+                activeTab === "official" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+              title="Official wpipe-steps"
             >
-              ✨ + AI Step
+              📦 Steps
+            </button>
+            <button
+              onClick={() => setActiveTab("plugins")}
+              className={`py-2.5 text-center border-b-2 transition ${
+                activeTab === "plugins" ? "border-emerald-500 text-emerald-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+              title="Community wpipe-plugins"
+            >
+              🔌 Plugins
+            </button>
+            <button
+              onClick={() => setActiveTab("user")}
+              className={`py-2.5 text-center border-b-2 transition ${
+                activeTab === "user" ? "border-amber-500 text-amber-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+              title="User Uploaded .py States"
+            >
+              📁 User
+            </button>
+            <button
+              onClick={() => setActiveTab("ai")}
+              className={`py-2.5 text-center border-b-2 transition ${
+                activeTab === "ai" ? "border-purple-500 text-purple-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+              title="AI New States"
+            >
+              ✨ AI
+            </button>
+            <button
+              onClick={() => setActiveTab("inuse")}
+              className={`py-2.5 text-center border-b-2 transition ${
+                activeTab === "inuse" ? "border-sky-500 text-sky-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+              title="Active Pipeline Summary"
+            >
+              📊 In Use
             </button>
           </div>
 
-          {/* Control Blocks Palette (Draggable) */}
-          <div className="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">
-              Control Blocks (Drag or Click)
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              <div
-                draggable
-                onDragStart={(e) => handleSidebarDragStart(e, { type: "logic", data: "condition" })}
-                className="p-2 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-800 rounded-lg text-center cursor-grab active:cursor-grabbing transition"
-              >
-                <span className="block text-xs font-bold text-amber-300">🔀 IF</span>
-                <span className="text-[10px] text-amber-400/70">Condition</span>
-              </div>
-              <div
-                draggable
-                onDragStart={(e) => handleSidebarDragStart(e, { type: "logic", data: "for" })}
-                className="p-2 bg-sky-950/60 hover:bg-sky-900/80 border border-sky-800 rounded-lg text-center cursor-grab active:cursor-grabbing transition"
-              >
-                <span className="block text-xs font-bold text-sky-300">🔁 FOR</span>
-                <span className="text-[10px] text-sky-400/70">Loop</span>
-              </div>
-              <div
-                draggable
-                onDragStart={(e) => handleSidebarDragStart(e, { type: "logic", data: "parallel" })}
-                className="p-2 bg-purple-950/60 hover:bg-purple-900/80 border border-purple-800 rounded-lg text-center cursor-grab active:cursor-grabbing transition"
-              >
-                <span className="block text-xs font-bold text-purple-300">⚡ PAR</span>
-                <span className="text-[10px] text-purple-400/70">Parallel</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Release Catalog Filter */}
-          <div className="space-y-2 flex-1 flex flex-col min-h-0">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Official Steps (196)</span>
-              <select
-                className="bg-gray-800 border border-gray-700 rounded text-xs text-gray-200 px-2 py-1 focus:outline-none"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="all">All ({catalog.length})</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 pt-1">
-              {filteredCatalog.slice(0, 60).map((step, idx) => (
-                <div
-                  key={idx}
-                  draggable
-                  onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                  className="p-3 bg-gray-800/80 hover:bg-gray-800 border border-gray-700/80 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group hover:border-indigo-500"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-200 group-hover:text-indigo-400">{step.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-900 text-gray-400 rounded border border-gray-700">{step.category}</span>
-                  </div>
-                  <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{step.description}</p>
+          {/* Sidebar Tab Contents */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            {/* TAB 1: OFFICIAL STEPS */}
+            {activeTab === "official" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-300 uppercase">Official Catalogue ({officialSteps.length})</span>
+                  <select
+                    className="bg-gray-800 border border-gray-700 rounded text-xs text-gray-200 px-2 py-1 focus:outline-none"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  {filteredOfficial.slice(0, 50).map((step, idx) => (
+                    <div
+                      key={idx}
+                      draggable
+                      onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
+                      className="p-3 bg-gray-800/80 hover:bg-gray-800 border border-indigo-900/50 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-indigo-300">{step.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-indigo-950 text-indigo-300 rounded border border-indigo-800 font-mono">
+                          {step.category}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{step.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: PLUGINS */}
+            {activeTab === "plugins" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-400 uppercase">Community Plugins ({pluginSteps.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {pluginSteps.map((step, idx) => (
+                    <div
+                      key={idx}
+                      draggable
+                      onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
+                      className="p-3.5 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-800 hover:border-emerald-500 rounded-xl cursor-grab active:cursor-grabbing transition shadow-md"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-emerald-300">{step.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 font-mono">
+                          v{step.version}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 mb-2">{step.description}</p>
+                      <div className="text-[10px] font-mono text-emerald-400/80 break-all bg-emerald-950/60 p-1.5 rounded border border-emerald-900">
+                        {step.how_to_use}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: USER UPLOADED */}
+            {activeTab === "user" && (
+              <div className="space-y-4">
+                <div className="bg-amber-950/30 p-3.5 rounded-xl border border-amber-800/80 space-y-2">
+                  <span className="text-xs font-semibold text-amber-300 block">📂 Import Custom .py State</span>
+                  <p className="text-[11px] text-gray-400">Upload your own Python state files to drag into the canvas.</p>
+                  <label className="block w-full text-center py-2 px-3 bg-amber-900/60 hover:bg-amber-800 text-amber-200 rounded-lg text-xs font-semibold border border-amber-700 cursor-pointer transition">
+                    Upload .py File
+                    <input type="file" accept=".py" className="hidden" onChange={handleFileUpload} />
+                  </label>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-400 uppercase">Uploaded Custom States ({userStates.length})</span>
+                  {userStates.length === 0 ? (
+                    <p className="text-xs text-gray-500 italic p-2">No custom states uploaded yet. Upload a .py file above!</p>
+                  ) : (
+                    userStates.map((step, idx) => (
+                      <div
+                        key={idx}
+                        draggable
+                        onDragStart={(e) => handleSidebarDragStart(e, { type: "user", data: step })}
+                        className="p-3 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-800 hover:border-amber-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-amber-300">{step.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-800 font-mono">.py</span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 mt-1 truncate">{step.description}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: AI NEW STEPS */}
+            {activeTab === "ai" && (
+              <div className="space-y-4">
+                <div className="bg-purple-950/30 p-3.5 rounded-xl border border-purple-800 space-y-3">
+                  <span className="text-xs font-bold text-purple-300 block">✨ Describe New AI Step</span>
+                  <p className="text-[11px] text-gray-400">Prompt the LLM agent to generate a custom step and its DTO.</p>
+                  <button
+                    onClick={() => setShowAiModal(true)}
+                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow transition"
+                  >
+                    + Create AI Step Prompt
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: ACTIVE PIPELINE SUMMARY */}
+            {activeTab === "inuse" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-sky-400 uppercase">Active Nodes ({nodes.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {nodes.map((node) => {
+                    const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
+                    return (
+                      <div
+                        key={node.id}
+                        onClick={() => setSelectedNode(node)}
+                        className={`p-3 bg-gray-800/90 border ${style.border} rounded-lg cursor-pointer transition hover:bg-gray-800 shadow-sm`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-bold ${style.text}`}>{node.data.label}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${style.badge}`}>{node.id}</span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-1 flex justify-between">
+                          <span>Origin: {node.data.origin}</span>
+                          <span>Type: {node.data.node_type}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 
-        {/* Central Canvas Workspace */}
+        {/* Central Canvas */}
         <main
           ref={canvasRef}
           onDrop={handleCanvasDrop}
@@ -426,21 +638,21 @@ export default function App() {
             backgroundSize: "24px 24px",
           }}
         >
-          {/* Top Canvas Bar */}
+          {/* Top Canvas Status */}
           <div className="absolute top-4 left-4 z-10 flex items-center space-x-3 bg-gray-900/90 backdrop-blur px-3.5 py-2 rounded-xl border border-gray-800 shadow-md">
-            <span className="text-xs font-semibold text-gray-400">Graph DAG:</span>
+            <span className="text-xs font-semibold text-gray-400">DAG Status:</span>
             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
               <span>✓ Acyclic</span>
               <span className="text-gray-500">({nodes.length} Nodes, {edges.length} Connections)</span>
             </span>
             {connectingSourceId && (
               <span className="ml-3 text-xs px-2 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-700 animate-pulse">
-                Connecting from {connectingSourceId}... Click target node!
+                Connecting from {connectingSourceId}... Click target node port!
               </span>
             )}
           </div>
 
-          {/* SVG Connection Wires Overlay */}
+          {/* SVG Connection Overlay */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
             <defs>
               <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -476,14 +688,12 @@ export default function App() {
             })}
           </svg>
 
-          {/* Canvas Nodes Layer */}
+          {/* Canvas Nodes Layer with Distinct Color Borders */}
           <div className="relative w-full h-full z-10">
             {nodes.map((node) => {
               const isSelected = selectedNode?.id === node.id;
               const isConnecting = connectingSourceId === node.id;
-              const isDescribed = node.data.origin === "described";
-              const isCondition = node.data.node_type === "condition";
-              const isFor = node.data.node_type === "for";
+              const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
 
               return (
                 <div
@@ -494,15 +704,9 @@ export default function App() {
                     isConnecting
                       ? "border-amber-400 ring-4 ring-amber-400/30"
                       : isSelected
-                      ? "border-indigo-500 ring-2 ring-indigo-500/40"
-                      : isCondition
-                      ? "border-amber-800"
-                      : isFor
-                      ? "border-sky-800"
-                      : isDescribed
-                      ? "border-purple-700"
-                      : "border-gray-800"
-                  } rounded-xl p-3.5 shadow-2xl cursor-move transition-shadow hover:shadow-indigo-500/10`}
+                      ? `${style.border} ring-2 ring-indigo-500/40 shadow-indigo-500/20`
+                      : style.border
+                  } rounded-xl p-3.5 shadow-2xl cursor-move transition-shadow hover:shadow-lg`}
                 >
                   {/* Connection Input Port */}
                   <div
@@ -528,15 +732,13 @@ export default function App() {
                     out
                   </div>
 
-                  {/* Node Header */}
+                  {/* Header Badge */}
                   <div className="flex items-center justify-between border-b border-gray-800 pb-2 mb-2">
                     <span className="text-[10px] font-mono text-gray-400">{node.id}</span>
                     <div className="flex items-center space-x-1">
-                      {isDescribed && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded border border-purple-800 font-bold">
-                          AI
-                        </span>
-                      )}
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${style.badge}`}>
+                        {node.data.origin}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -549,32 +751,19 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Node Title */}
-                  <h3 className="font-bold text-gray-100 text-sm">{node.data.label}</h3>
-                  <p className="text-[11px] font-mono text-indigo-400 truncate mb-2">
+                  {/* Title & Function */}
+                  <h3 className={`font-bold text-sm ${style.text}`}>{node.data.label}</h3>
+                  <p className="text-[11px] font-mono text-gray-400 truncate mb-2">
                     {node.data.func_name || node.data.node_type}
                   </p>
 
-                  {/* Condition / For specifics */}
-                  {isCondition && (
-                    <div className="bg-amber-950/40 p-1.5 rounded border border-amber-900/50 text-[10px] font-mono text-amber-200 mb-2 truncate">
-                      IF: {node.data.condition_expression}
-                    </div>
-                  )}
-
-                  {isFor && (
-                    <div className="bg-sky-950/40 p-1.5 rounded border border-sky-900/50 text-[10px] font-mono text-sky-200 mb-2">
-                      LOOP: {node.data.for_iterations || 5} iterations
-                    </div>
-                  )}
-
-                  {/* Contract Reads/Writes summary */}
+                  {/* Contract summary */}
                   <div className="space-y-0.5 text-[11px] text-gray-400 border-t border-gray-800/80 pt-2">
                     <div>
-                      <span className="text-gray-500">In:</span> {node.data.contract.reads.join(", ") || "none"}
+                      <span className="text-gray-500">Reads:</span> {node.data.contract.reads.join(", ") || "none"}
                     </div>
                     <div>
-                      <span className="text-gray-500">Out:</span> {node.data.contract.writes.join(", ") || "none"}
+                      <span className="text-gray-500">Writes:</span> {node.data.contract.writes.join(", ") || "none"}
                     </div>
                   </div>
                 </div>
@@ -589,113 +778,126 @@ export default function App() {
           </div>
         </main>
 
-        {/* Right Node Inspector Panel */}
-        <aside className="w-80 bg-gray-900 border-l border-gray-800 p-5 flex flex-col space-y-4 z-10">
-          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Node Inspector</h2>
+        {/* Right Inspector & Code/Notes Viewer Panel */}
+        <aside className="w-88 bg-gray-900 border-l border-gray-800 flex flex-col z-10">
+          <div className="grid grid-cols-2 border-b border-gray-800 bg-gray-950 text-xs font-semibold text-gray-400">
+            <button
+              onClick={() => setInspectorTab("properties")}
+              className={`py-3 text-center border-b-2 transition ${
+                inspectorTab === "properties" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+            >
+              ⚙️ Properties
+            </button>
+            <button
+              onClick={() => setInspectorTab("code_notes")}
+              className={`py-3 text-center border-b-2 transition ${
+                inspectorTab === "code_notes" ? "border-purple-500 text-purple-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              }`}
+            >
+              💻 Code & Notes
+            </button>
+          </div>
 
-          {selectedNode ? (
-            <div className="space-y-4 text-sm">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Node Label</label>
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-medium text-xs"
-                  value={selectedNode.data.label}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setNodes((prev) =>
-                      prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label: val } } : n))
-                    );
-                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, label: val } } : null));
-                  }}
-                />
-              </div>
+          <div className="flex-1 p-5 overflow-y-auto">
+            {selectedNode ? (
+              inspectorTab === "properties" ? (
+                /* PROPERTIES TAB */
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className="block text-gray-400 mb-1">Node Label</label>
+                    <input
+                      type="text"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-medium"
+                      value={selectedNode.data.label}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNodes((prev) =>
+                          prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label: val } } : n))
+                        );
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, label: val } } : null));
+                      }}
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Node Type & Origin</label>
-                <div className="flex items-center space-x-2">
-                  <span className="bg-gray-800 text-indigo-300 font-mono text-xs px-2.5 py-1 rounded border border-gray-700">
-                    {selectedNode.data.node_type}
-                  </span>
-                  <span className="bg-gray-800 text-purple-300 font-mono text-xs px-2.5 py-1 rounded border border-gray-700">
-                    {selectedNode.data.origin}
-                  </span>
+                  <div>
+                    <label className="block text-gray-400 mb-1">Namespace</label>
+                    <p className="font-mono text-gray-300 bg-gray-950 p-2 rounded border border-gray-800 break-all">
+                      {selectedNode.data.namespace || "N/A"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 mb-1">Context Writes (Output Variables)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 font-mono text-emerald-400"
+                      value={selectedNode.data.contract.writes.join(", ")}
+                      onChange={(e) => {
+                        const writes = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+                        setNodes((prev) =>
+                          prev.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...n.data, contract: { ...n.data.contract, writes } } }
+                              : n
+                          )
+                        );
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 mb-1">Merge Policy</label>
+                    <select
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-200"
+                      value={selectedNode.data.merge_policy}
+                      onChange={(e) => {
+                        const val = e.target.value as any;
+                        setNodes((prev) =>
+                          prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, merge_policy: val } } : n))
+                        );
+                      }}
+                    >
+                      <option value="accumulate">accumulate (default)</option>
+                      <option value="last_wins">last_wins</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* CODE & NOTES TAB */
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className="block text-purple-300 font-bold mb-1">📝 Developer Notes / Agent Instructions</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Add developer notes or agent refinement instructions here..."
+                      className="w-full bg-gray-950 border border-purple-800/80 rounded-lg p-2.5 text-gray-200 text-xs resize-none focus:outline-none focus:border-purple-500"
+                      value={selectedNode.data.notes || ""}
+                      onChange={(e) => {
+                        const notes = e.target.value;
+                        setNodes((prev) =>
+                          prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, notes } } : n))
+                        );
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, notes } } : null));
+                      }}
+                    ></textarea>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      These notes will be passed directly to the LLM agent when generating/refining Python code.
+                    </p>
+                  </div>
 
-              {selectedNode.data.node_type === "condition" && (
-                <div>
-                  <label className="block text-xs text-amber-400 mb-1 font-semibold">IF Condition Expression</label>
-                  <input
-                    type="text"
-                    className="w-full bg-gray-800 border border-amber-800 rounded-lg p-2 text-xs font-mono text-amber-200"
-                    value={selectedNode.data.condition_expression || ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setNodes((prev) =>
-                        prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, condition_expression: val } } : n))
-                      );
-                    }}
-                  />
+                  <div>
+                    <label className="block text-gray-400 font-semibold mb-1">💻 Python Code Preview</label>
+                    <pre className="bg-gray-950 p-3 rounded-lg border border-gray-800 font-mono text-[11px] text-indigo-300 overflow-x-auto whitespace-pre-wrap">
+                      {selectedNode.data.code_snippet || `# Step: ${selectedNode.data.label}\nfrom wpipe import step\n\n# Code template`}
+                    </pre>
+                  </div>
                 </div>
-              )}
-
-              {selectedNode.data.node_type === "for" && (
-                <div>
-                  <label className="block text-xs text-sky-400 mb-1 font-semibold">Loop Iterations Count</label>
-                  <input
-                    type="number"
-                    className="w-full bg-gray-800 border border-sky-800 rounded-lg p-2 text-xs font-mono text-sky-200"
-                    value={selectedNode.data.for_iterations || 5}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 1;
-                      setNodes((prev) =>
-                        prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, for_iterations: val } } : n))
-                      );
-                    }}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Context Writes (Output Variables)</label>
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs font-mono text-emerald-400"
-                  value={selectedNode.data.contract.writes.join(", ")}
-                  onChange={(e) => {
-                    const writes = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
-                    setNodes((prev) =>
-                      prev.map((n) =>
-                        n.id === selectedNode.id
-                          ? { ...n, data: { ...n.data, contract: { ...n.data.contract, writes } } }
-                          : n
-                      )
-                    );
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Merge Policy</label>
-                <select
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs text-gray-200"
-                  value={selectedNode.data.merge_policy}
-                  onChange={(e) => {
-                    const val = e.target.value as any;
-                    setNodes((prev) =>
-                      prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, merge_policy: val } } : n))
-                    );
-                  }}
-                >
-                  <option value="accumulate">accumulate (default)</option>
-                  <option value="last_wins">last_wins</option>
-                </select>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500 italic">Select a node on the canvas to inspect its properties.</p>
-          )}
+              )
+            ) : (
+              <p className="text-xs text-gray-500 italic">Select a node on the canvas to inspect its properties or code.</p>
+            )}
+          </div>
         </aside>
       </div>
 
@@ -707,7 +909,7 @@ export default function App() {
               <span>✨ Create AI Custom Step</span>
             </h3>
             <p className="text-xs text-gray-400">
-              Describe the custom step functionality. The AI LLM Agent will generate its code and Dialect A DTO.
+              Describe the custom step functionality. The LLM Agent will generate its code and Dialect A DTO.
             </p>
 
             <div className="space-y-3">
@@ -752,7 +954,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Verification Modal */}
+      {/* Verification Results Modal */}
       {verificationModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
