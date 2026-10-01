@@ -28,7 +28,8 @@ Si algo falla, no hay ZIP.
 - **Pydantic v2**: Validación de datos estricta y esquemas del IR (`CanvasIR`, `SemanticIR`, `TargetIR`).
 - **React 19 & TypeScript**: Interfaz visual de usuario para el Canvas de diseño de pipelines.
 - **Zod**: Validación de esquemas del IR en el frontend espejo de Pydantic.
-- **Vite & Tailwind CSS**: Bundler ultrarrápido y framework de estilos utilitarios para la interfaz SaaS.
+- **Vite & Tailwind CSS**: Bundler ultrarrápido, utilidades CSS y componentes con Glassmorphic Dark UI.
+- **Google Fonts (Outfit & Plus Jakarta Sans)**: Sistema tipográfico premium para encabezados y cuerpo de texto.
 - **Pytest**: Suite de pruebas automatizadas con cobertura de código.
 - **Docker**: Entorno aislado y efímero para la ejecución de pruebas y verificación de calidad.
 
