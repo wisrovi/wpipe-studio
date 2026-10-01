@@ -14,6 +14,20 @@ interface CatalogStep {
 }
 
 export default function App() {
+  // Splash Screen state
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [splashProgress, setSplashProgress] = useState<number>(0);
+  const [splashFadeOut, setSplashFadeOut] = useState<boolean>(false);
+
+  // Mobile Drawer state
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+
+  // Loading states
+  const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
+  const [dryRunLoading, setDryRunLoading] = useState<boolean>(false);
+  const [zipLoading, setZipLoading] = useState<boolean>(false);
+
+  // Canvas Nodes & Edges
   const [nodes, setNodes] = useState<CanvasNode[]>([
     {
       id: "node_1",
@@ -101,9 +115,30 @@ export default function App() {
   // Canvas dragging node state
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragOverCanvas, setIsDragOverCanvas] = useState<boolean>(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  // Splash Screen progress timer & fadeout
   useEffect(() => {
+    const timer = setInterval(() => {
+      setSplashProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(timer);
+          setTimeout(() => {
+            setSplashFadeOut(true);
+            setTimeout(() => setShowSplash(false), 500);
+          }, 400);
+          return 100;
+        }
+        return prev + 25;
+      });
+    }, 150);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setCatalogLoading(true);
     fetch("/api/v1/catalog/steps")
       .then((res) => res.json())
       .then((data) => {
@@ -113,6 +148,9 @@ export default function App() {
       })
       .catch((err) => {
         console.error("Failed to load catalog steps:", err);
+      })
+      .finally(() => {
+        setCatalogLoading(false);
       });
   }, []);
 
@@ -135,6 +173,7 @@ export default function App() {
 
   const handleCanvasDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragOverCanvas(false);
     const rawData = e.dataTransfer.getData("application/wpipe-node");
     if (!rawData) return;
     const item = JSON.parse(rawData);
@@ -211,9 +250,14 @@ export default function App() {
   const handleCanvasDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    setIsDragOverCanvas(true);
   };
 
-  // Canvas Right Click Context Menu Handler
+  const handleCanvasDragLeave = () => {
+    setIsDragOverCanvas(false);
+  };
+
+  // Canvas Context Menu Handler
   const handleCanvasContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     const canvasRect = canvasRef.current?.getBoundingClientRect();
@@ -391,6 +435,7 @@ export default function App() {
 
   // Dry Run Verification Handler
   const handleDryRun = async () => {
+    setDryRunLoading(true);
     setStatusMessage("Running 6 quality gates in Docker sandbox...");
     const canvasIr: CanvasIR = { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } };
     try {
@@ -404,11 +449,14 @@ export default function App() {
       setStatusMessage("Verification completed: All gates PASSED ✓");
     } catch (err: any) {
       setStatusMessage(`Verification error: ${err.message}`);
+    } finally {
+      setDryRunLoading(false);
     }
   };
 
   // Generate Microservice ZIP Handler
   const handleGenerateZip = async () => {
+    setZipLoading(true);
     setStatusMessage("Building production ZIP...");
     const canvasIr: CanvasIR = { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } };
     try {
@@ -427,6 +475,8 @@ export default function App() {
       setStatusMessage("Microservice ZIP downloaded!");
     } catch (err: any) {
       setStatusMessage(`Generate error: ${err.message}`);
+    } finally {
+      setZipLoading(false);
     }
   };
 
@@ -474,15 +524,45 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-gray-950 text-gray-100 font-sans select-none overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-[#05070c] text-gray-100 font-sans select-none overflow-hidden aurora-bg">
+      {/* 5. FULLSCREEN SPLASH LOADER */}
+      {showSplash && (
+        <div
+          className={`fixed inset-0 z-[9999] bg-[#05070c] flex flex-col items-center justify-center transition-opacity duration-500 ${
+            splashFadeOut ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center font-black text-white text-3xl shadow-2xl logo-pulsing mb-6">
+            W
+          </div>
+          <h2 className="text-2xl font-extrabold text-gray-100 font-heading tracking-tight mb-2">WPipe Studio</h2>
+          <p className="text-xs text-gray-400 mb-8">Initializing Multi-tenant Canvas & Release Catalog Engine...</p>
+
+          <div className="w-64 h-1.5 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-200"
+              style={{ width: `${splashProgress}%` }}
+            ></div>
+          </div>
+          <span className="text-[10px] font-mono text-gray-500 mt-2">{splashProgress}%</span>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="flex items-center justify-between px-6 py-2.5 border-b border-gray-800/80 bg-gray-900/90 backdrop-blur-md shadow-lg z-20">
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setMobileDrawerOpen(true)}
+            className="lg:hidden p-2 text-gray-400 hover:text-white rounded-lg bg-gray-800 border border-gray-700"
+            aria-label="Open Mobile Menu Drawer"
+          >
+            ☰
+          </button>
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center font-black text-white text-lg shadow-md shadow-indigo-600/20">
             W
           </div>
           <div>
-            <h1 className="text-lg font-extrabold text-gray-100 tracking-tight flex items-center gap-2">
+            <h1 className="text-lg font-extrabold text-gray-100 font-heading tracking-tight flex items-center gap-2">
               <span>WPipe Studio</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-normal">
                 v2.5.8
@@ -512,36 +592,108 @@ export default function App() {
           <button
             onClick={() => setGlobalCompactView(!globalCompactView)}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition"
-            title="Toggle LabVIEW Compact View"
+            aria-label="Toggle compact LabVIEW view"
           >
             {globalCompactView ? "👁️ Detailed View" : "👁️ LabVIEW View"}
           </button>
           <button
             onClick={handleDryRun}
-            className="px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white transition shadow-md shadow-indigo-600/20 active:scale-95"
+            disabled={dryRunLoading}
+            className="btn-glossy px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 text-white transition shadow-md shadow-indigo-600/20 disabled:opacity-50"
+            aria-label="Dry-Run Verify"
           >
-            🚀 Dry-Run Verify
+            {dryRunLoading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                Verifying...
+              </span>
+            ) : (
+              "🚀 Dry-Run Verify"
+            )}
           </button>
           <button
             onClick={handleGenerateZip}
-            className="px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white transition shadow-md shadow-emerald-600/20 active:scale-95"
+            disabled={zipLoading}
+            className="btn-emerald-glossy px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 text-white transition shadow-md shadow-emerald-600/20 disabled:opacity-50"
+            aria-label="Generate ZIP"
           >
-            📦 Generate ZIP
+            {zipLoading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                Building...
+              </span>
+            ) : (
+              "📦 Generate ZIP"
+            )}
           </button>
         </div>
       </header>
 
-      {/* Main Workspace */}
+      {/* 4. RESPONSIVE MOBILE DRAWER */}
+      <div
+        className={`drawer-panel bg-gray-900 border-l border-gray-800 shadow-2xl flex flex-col p-4 ${
+          mobileDrawerOpen ? "open" : ""
+        }`}
+      >
+        <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-4">
+          <h3 className="font-bold text-gray-100 text-sm font-heading">Mobile Controls</h3>
+          <button
+            onClick={() => setMobileDrawerOpen(false)}
+            className="text-gray-400 hover:text-white p-1"
+            aria-label="Close Mobile Menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={() => {
+              handleDryRun();
+              setMobileDrawerOpen(false);
+            }}
+            className="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg text-xs"
+          >
+            🚀 Dry-Run Verify
+          </button>
+          <button
+            onClick={() => {
+              handleGenerateZip();
+              setMobileDrawerOpen(false);
+            }}
+            className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-lg text-xs"
+          >
+            📦 Generate ZIP
+          </button>
+          <button
+            onClick={() => {
+              clearCanvas();
+              setMobileDrawerOpen(false);
+            }}
+            className="w-full py-2.5 bg-gray-800 text-gray-300 font-bold rounded-lg text-xs border border-gray-700"
+          >
+            🧹 Clear Canvas
+          </button>
+        </div>
+      </div>
+
+      {/* Workspace */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Catalogue */}
-        <aside className="w-96 bg-gray-900/95 border-r border-gray-800/80 flex flex-col z-10 shadow-xl">
+        <aside className="w-96 bg-gray-900/95 border-r border-gray-800/80 flex flex-col z-10 shadow-xl glass-panel">
           {/* Real-Time Search Bar */}
           <div className="p-3 bg-gray-950 border-b border-gray-800/80">
             <div className="relative">
               <input
                 type="text"
                 placeholder="🔍 Search steps, vision, ocr, nmap, waf..."
-                className="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
+                className="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none transition shadow-inner"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -602,182 +754,202 @@ export default function App() {
 
           {/* Sidebar Tab Contents */}
           <div className="flex-1 p-3.5 overflow-y-auto space-y-4">
-            {/* TAB 1: OFFICIAL STEPS TREE */}
-            {activeTab === "official" && (
+            {/* 6. SKELETON LOADER STATE */}
+            {catalogLoading ? (
               <div className="space-y-3">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
-                  Category & Subcategory Tree ({searchedOfficial.length})
-                </span>
+                <div className="h-6 w-3/4 skeleton-block"></div>
+                <div className="h-16 skeleton-block"></div>
+                <div className="h-16 skeleton-block"></div>
+                <div className="h-16 skeleton-block"></div>
+              </div>
+            ) : (
+              <>
+                {/* TAB 1: OFFICIAL STEPS TREE */}
+                {activeTab === "official" && (
+                  <div className="space-y-3">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2 font-heading">
+                      Category & Subcategory Tree ({searchedOfficial.length})
+                    </span>
 
-                {Object.keys(categoryTree).length === 0 ? (
-                  <p className="text-xs text-gray-500 italic p-2">No matching steps found for '{searchQuery}'</p>
-                ) : (
-                  Object.entries(categoryTree).map(([category, subMap]) => {
-                    const isCatOpen = expandedCategories[category] ?? true;
-                    const catCount = Object.values(subMap).reduce((acc, list) => acc + list.length, 0);
+                    {/* 8. DESIGNED EMPTY STATE */}
+                    {Object.keys(categoryTree).length === 0 ? (
+                      <div className="p-6 text-center border border-dashed border-gray-800 rounded-xl bg-gray-950/40 my-4">
+                        <svg className="w-10 h-10 mx-auto text-gray-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <p className="text-xs font-bold text-gray-400">No steps matched '{searchQuery}'</p>
+                        <p className="text-[11px] text-gray-500 mt-1">Try searching for keywords like 'http', 'ocr', 'waf', or 'nmap'.</p>
+                      </div>
+                    ) : (
+                      Object.entries(categoryTree).map(([category, subMap]) => {
+                        const isCatOpen = expandedCategories[category] ?? true;
+                        const catCount = Object.values(subMap).reduce((acc, list) => acc + list.length, 0);
 
-                    return (
-                      <div key={category} className="border border-gray-800/80 rounded-xl bg-gray-950/60 overflow-hidden shadow-sm">
-                        {/* Category Header Accordion */}
-                        <div
-                          onClick={() =>
-                            setExpandedCategories((prev) => ({ ...prev, [category]: !isCatOpen }))
-                          }
-                          className="flex items-center justify-between p-2.5 bg-gray-900/90 hover:bg-gray-850 cursor-pointer border-b border-gray-800/60 transition"
-                        >
-                          <span className="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-2">
-                            <span>{getCategoryIcon(category)}</span>
-                            <span>{category}</span>
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 bg-gray-800 text-gray-400 rounded-full font-mono">
-                            {catCount}
-                          </span>
-                        </div>
+                        return (
+                          <div key={category} className="border border-gray-800/80 rounded-xl bg-gray-950/60 overflow-hidden shadow-sm">
+                            {/* Category Header Accordion */}
+                            <div
+                              onClick={() =>
+                                setExpandedCategories((prev) => ({ ...prev, [category]: !isCatOpen }))
+                              }
+                              className="flex items-center justify-between p-2.5 bg-gray-900/90 hover:bg-gray-850 cursor-pointer border-b border-gray-800/60 transition"
+                            >
+                              <span className="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-2 font-heading">
+                                <span>{getCategoryIcon(category)}</span>
+                                <span>{category}</span>
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 bg-gray-800 text-gray-400 rounded-full font-mono">
+                                {catCount}
+                              </span>
+                            </div>
 
-                        {/* Subcategories & Steps */}
-                        {isCatOpen && (
-                          <div className="p-2 space-y-3">
-                            {Object.entries(subMap).map(([subcat, stepsList]) => (
-                              <div key={subcat} className="space-y-1.5 pl-2 border-l-2 border-indigo-950">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                                  └─ {subcat} ({stepsList.length})
-                                </span>
-                                <div className="space-y-1.5">
-                                  {stepsList.map((step, idx) => (
-                                    <div
-                                      key={idx}
-                                      draggable
-                                      onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                                      className="p-2.5 bg-gray-900/90 hover:bg-gray-800 border border-indigo-900/40 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-semibold text-indigo-200 group-hover:text-indigo-400">
-                                          {step.name}
-                                        </span>
-                                      </div>
-                                      <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{step.description}</p>
+                            {/* Subcategories & Steps */}
+                            {isCatOpen && (
+                              <div className="p-2 space-y-3">
+                                {Object.entries(subMap).map(([subcat, stepsList]) => (
+                                  <div key={subcat} className="space-y-1.5 pl-2 border-l-2 border-indigo-950">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                      └─ {subcat} ({stepsList.length})
+                                    </span>
+                                    <div className="space-y-1.5">
+                                      {stepsList.map((step, idx) => (
+                                        <div
+                                          key={idx}
+                                          draggable
+                                          onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
+                                          className="p-2.5 bg-gray-900/90 hover:bg-gray-800 border border-indigo-900/40 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs font-semibold text-indigo-200 group-hover:text-indigo-400">
+                                              {step.name}
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{step.description}</p>
+                                        </div>
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
+                        );
+                      })
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            {/* TAB 2: PLUGINS */}
-            {activeTab === "plugins" && (
-              <div className="space-y-3">
-                <span className="text-xs font-semibold text-emerald-400 uppercase block">
-                  Community Plugins ({searchedPlugins.length})
-                </span>
-                <div className="space-y-2">
-                  {searchedPlugins.map((step, idx) => (
-                    <div
-                      key={idx}
-                      draggable
-                      onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                      className="p-3.5 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-800/80 hover:border-emerald-500 rounded-xl cursor-grab active:cursor-grabbing transition shadow-md"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-emerald-300">{step.name}</span>
-                        <span className="text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 font-mono">
-                          v{step.version}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-gray-300 mb-2">{step.description}</p>
-                      <div className="text-[10px] font-mono text-emerald-400/80 break-all bg-emerald-950/60 p-1.5 rounded border border-emerald-900">
-                        {step.how_to_use}
-                      </div>
+                {/* TAB 2: PLUGINS */}
+                {activeTab === "plugins" && (
+                  <div className="space-y-3">
+                    <span className="text-xs font-semibold text-emerald-400 uppercase block font-heading">
+                      Community Plugins ({searchedPlugins.length})
+                    </span>
+                    <div className="space-y-2">
+                      {searchedPlugins.map((step, idx) => (
+                        <div
+                          key={idx}
+                          draggable
+                          onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
+                          className="p-3.5 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-800/80 hover:border-emerald-500 rounded-xl cursor-grab active:cursor-grabbing transition shadow-md"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-emerald-300">{step.name}</span>
+                            <span className="text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 font-mono">
+                              v{step.version}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-300 mb-2">{step.description}</p>
+                          <div className="text-[10px] font-mono text-emerald-400/80 break-all bg-emerald-950/60 p-1.5 rounded border border-emerald-900">
+                            {step.how_to_use}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {/* TAB 3: USER UPLOADED */}
-            {activeTab === "user" && (
-              <div className="space-y-4">
-                <div className="bg-amber-950/30 p-3.5 rounded-xl border border-amber-800/80 space-y-2">
-                  <span className="text-xs font-semibold text-amber-300 block">📂 Import Custom .py State</span>
-                  <p className="text-[11px] text-gray-400">Upload your own Python state files to drag into the canvas.</p>
-                  <label className="block w-full text-center py-2 px-3 bg-amber-900/60 hover:bg-amber-800 text-amber-200 rounded-lg text-xs font-semibold border border-amber-700 cursor-pointer transition">
-                    Upload .py File
-                    <input type="file" accept=".py" className="hidden" onChange={handleFileUpload} />
-                  </label>
-                </div>
+                {/* TAB 3: USER UPLOADED */}
+                {activeTab === "user" && (
+                  <div className="space-y-4">
+                    {/* 3. DRAG & DROP ZONE GLOW */}
+                    <div className="bg-amber-950/30 p-3.5 rounded-xl border border-amber-800/80 space-y-2 hover:border-amber-500 transition">
+                      <span className="text-xs font-semibold text-amber-300 block font-heading">📂 Import Custom .py State</span>
+                      <p className="text-[11px] text-gray-400">Upload your own Python state files to drag into the canvas.</p>
+                      <label className="block w-full text-center py-2 px-3 bg-amber-900/60 hover:bg-amber-800 text-amber-200 rounded-lg text-xs font-semibold border border-amber-700 cursor-pointer transition">
+                        Upload .py File
+                        <input type="file" accept=".py" className="hidden" onChange={handleFileUpload} />
+                      </label>
+                    </div>
 
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-gray-400 uppercase">Uploaded Custom States ({userStates.length})</span>
-                  {userStates.length === 0 ? (
-                    <p className="text-xs text-gray-500 italic p-2">No custom states uploaded yet. Upload a .py file above!</p>
-                  ) : (
-                    userStates.map((step, idx) => (
-                      <div
-                        key={idx}
-                        draggable
-                        onDragStart={(e) => handleSidebarDragStart(e, { type: "user", data: step })}
-                        className="p-3 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-800 hover:border-amber-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm"
+                    <div className="space-y-2">
+                      <span className="text-xs font-semibold text-gray-400 uppercase">Uploaded Custom States ({userStates.length})</span>
+                      {userStates.length === 0 ? (
+                        <p className="text-xs text-gray-500 italic p-2">No custom states uploaded yet. Upload a .py file above!</p>
+                      ) : (
+                        userStates.map((step, idx) => (
+                          <div
+                            key={idx}
+                            draggable
+                            onDragStart={(e) => handleSidebarDragStart(e, { type: "user", data: step })}
+                            className="p-3 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-800 hover:border-amber-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-amber-300">{step.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-800 font-mono">.py</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400 mt-1 truncate">{step.description}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: AI NEW STEPS */}
+                {activeTab === "ai" && (
+                  <div className="space-y-4">
+                    <div className="bg-purple-950/30 p-3.5 rounded-xl border border-purple-800 space-y-3">
+                      <span className="text-xs font-bold text-purple-300 block font-heading">✨ Describe New AI Step</span>
+                      <p className="text-[11px] text-gray-400">Prompt the LLM agent to generate a custom step and its DTO.</p>
+                      <button
+                        onClick={() => setShowAiModal(true)}
+                        className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow transition"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-amber-300">{step.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-800 font-mono">.py</span>
-                        </div>
-                        <p className="text-[11px] text-gray-400 mt-1 truncate">{step.description}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
+                        + Create AI Step Prompt
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-            {/* TAB 4: AI NEW STEPS */}
-            {activeTab === "ai" && (
-              <div className="space-y-4">
-                <div className="bg-purple-950/30 p-3.5 rounded-xl border border-purple-800 space-y-3">
-                  <span className="text-xs font-bold text-purple-300 block">✨ Describe New AI Step</span>
-                  <p className="text-[11px] text-gray-400">Prompt the LLM agent to generate a custom step and its DTO.</p>
-                  <button
-                    onClick={() => setShowAiModal(true)}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow transition"
-                  >
-                    + Create AI Step Prompt
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 5: ACTIVE PIPELINE SUMMARY */}
-            {activeTab === "inuse" && (
-              <div className="space-y-3">
-                <span className="text-xs font-semibold text-sky-400 uppercase block">Active Nodes ({nodes.length})</span>
-                <div className="space-y-2">
-                  {nodes.map((node) => {
-                    const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
-                    return (
-                      <div
-                        key={node.id}
-                        onClick={() => setSelectedNode(node)}
-                        className={`p-3 bg-gray-800/90 border ${style.border} rounded-lg cursor-pointer transition hover:bg-gray-800 shadow-sm`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold ${style.text}`}>{node.data.label}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${style.badge}`}>{node.id}</span>
-                        </div>
-                        <div className="text-[10px] text-gray-400 mt-1 flex justify-between">
-                          <span>Origin: {node.data.origin}</span>
-                          <span>Type: {node.data.node_type}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                {/* TAB 5: ACTIVE PIPELINE SUMMARY */}
+                {activeTab === "inuse" && (
+                  <div className="space-y-3">
+                    <span className="text-xs font-semibold text-sky-400 uppercase block font-heading">Active Nodes ({nodes.length})</span>
+                    <div className="space-y-2">
+                      {nodes.map((node) => {
+                        const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
+                        return (
+                          <div
+                            key={node.id}
+                            onClick={() => setSelectedNode(node)}
+                            className={`p-3 bg-gray-800/90 border ${style.border} rounded-lg cursor-pointer transition hover:bg-gray-800 shadow-sm`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-bold ${style.text}`}>{node.data.label}</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${style.badge}`}>{node.id}</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-1 flex justify-between">
+                              <span>Origin: {node.data.origin}</span>
+                              <span>Type: {node.data.node_type}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </aside>
@@ -787,10 +959,13 @@ export default function App() {
           ref={canvasRef}
           onDrop={handleCanvasDrop}
           onDragOver={handleCanvasDragOver}
+          onDragLeave={handleCanvasDragLeave}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
           onContextMenu={handleCanvasContextMenu}
-          className="flex-1 bg-gray-950 p-6 relative overflow-hidden flex flex-col justify-between"
+          className={`flex-1 bg-[#05070c] p-6 relative overflow-hidden flex flex-col justify-between transition-all ${
+            isDragOverCanvas ? "dragzone-active" : ""
+          }`}
           style={{
             backgroundImage: "radial-gradient(#1f2937 1px, transparent 1px)",
             backgroundSize: "24px 24px",
@@ -809,18 +984,21 @@ export default function App() {
             <button
               onClick={() => handleAddFromContextMenu("condition")}
               className="px-2 py-1 bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 rounded text-xs border border-amber-800/80 font-medium"
+              aria-label="Add IF Condition block"
             >
               + IF
             </button>
             <button
               onClick={() => handleAddFromContextMenu("for")}
               className="px-2 py-1 bg-sky-950/60 hover:bg-sky-900/80 text-sky-300 rounded text-xs border border-sky-800/80 font-medium"
+              aria-label="Add FOR Loop block"
             >
               + FOR
             </button>
             <button
               onClick={() => handleAddFromContextMenu("parallel")}
               className="px-2 py-1 bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 rounded text-xs border border-purple-800/80 font-medium"
+              aria-label="Add PARALLEL branch block"
             >
               + PAR
             </button>
@@ -828,6 +1006,7 @@ export default function App() {
               onClick={clearCanvas}
               className="px-2 py-1 bg-gray-800 hover:bg-rose-950 text-gray-300 hover:text-rose-300 rounded text-xs border border-gray-700 transition"
               title="Clear all nodes from canvas"
+              aria-label="Clear Canvas"
             >
               🧹 Clear
             </button>
@@ -879,107 +1058,122 @@ export default function App() {
 
           {/* Canvas Nodes Layer: LabVIEW-Style Compact Block Cards */}
           <div className="relative w-full h-full z-10">
-            {nodes.map((node) => {
-              const isSelected = selectedNode?.id === node.id;
-              const isConnecting = connectingSourceId === node.id;
-              const isExpanded = expandedNodes[node.id] ?? !globalCompactView;
-              const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
-
-              return (
-                <div
-                  key={node.id}
-                  onMouseDown={(e) => handleNodeMouseDown(e, node)}
-                  style={{ left: `${node.position.x}px`, top: `${node.position.y}px` }}
-                  className={`absolute ${
-                    isExpanded ? "w-64" : "w-48"
-                  } bg-gray-900/95 backdrop-blur-md border ${
-                    isConnecting
-                      ? "border-amber-400 ring-4 ring-amber-400/30"
-                      : isSelected
-                      ? `${style.border} ring-2 ring-indigo-500/40 shadow-indigo-500/20`
-                      : style.border
-                  } rounded-xl p-2.5 shadow-2xl cursor-move transition-all hover:shadow-xl`}
-                >
-                  {/* Connection Input Port */}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (connectingSourceId) handleConnectClick(node.id);
-                    }}
-                    title="Input Connection Port"
-                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
-                  >
-                    in
+            {nodes.length === 0 ? (
+              /* 8. CANVAS EMPTY STATE */
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div className="p-8 glass-card rounded-2xl border border-gray-800 text-center max-w-sm pointer-events-auto shadow-2xl">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-gray-800 flex items-center justify-center text-2xl mb-3 text-indigo-400">
+                    ⚡
                   </div>
-
-                  {/* Connection Output Port */}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleConnectClick(node.id);
-                    }}
-                    title="Output Connection Port"
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
-                  >
-                    out
-                  </div>
-
-                  {/* LabVIEW Compact Header Pill */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 truncate">
-                      <span className={`text-xs font-bold truncate ${style.text}`}>{node.data.label}</span>
-                    </div>
-
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={(e) => toggleNodeExpand(node.id, e)}
-                        className="text-[10px] px-1.5 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold border border-gray-700"
-                        title={isExpanded ? "Collapse Node" : "Expand LabVIEW View"}
-                      >
-                        {isExpanded ? "▲" : "▼"}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeNode(node.id);
-                        }}
-                        className="text-xs text-rose-400 hover:text-rose-300 p-0.5 rounded hover:bg-rose-950/50"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Expanded LabVIEW Detail Card */}
-                  {isExpanded && (
-                    <div className="mt-2.5 pt-2 border-t border-gray-800/80 space-y-1.5 text-[11px] animate-fadeIn">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500 font-mono text-[10px]">{node.id}</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${style.badge}`}>
-                          {node.data.origin}
-                        </span>
-                      </div>
-
-                      <p className="text-[10px] font-mono text-gray-400 truncate">
-                        {node.data.func_name || node.data.node_type}
-                      </p>
-
-                      <div className="space-y-0.5 text-gray-400 pt-1 border-t border-gray-800/50">
-                        <div>
-                          <span className="text-gray-500">In:</span> {node.data.contract.reads.join(", ") || "none"}
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Out:</span> {node.data.contract.writes.join(", ") || "none"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <h3 className="font-bold text-gray-200 text-sm font-heading mb-1">Canvas is empty</h3>
+                  <p className="text-xs text-gray-400 mb-4">Drag steps from the sidebar catalog or right-click anywhere to add control blocks.</p>
                 </div>
-              );
-            })}
+              </div>
+            ) : (
+              nodes.map((node) => {
+                const isSelected = selectedNode?.id === node.id;
+                const isConnecting = connectingSourceId === node.id;
+                const isExpanded = expandedNodes[node.id] ?? !globalCompactView;
+                const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
+
+                return (
+                  <div
+                    key={node.id}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node)}
+                    style={{ left: `${node.position.x}px`, top: `${node.position.y}px` }}
+                    className={`absolute ${
+                      isExpanded ? "w-64" : "w-48"
+                    } bg-gray-900/95 backdrop-blur-md border ${
+                      isConnecting
+                        ? "border-amber-400 ring-4 ring-amber-400/30"
+                        : isSelected
+                        ? `${style.border} ring-2 ring-indigo-500/40 shadow-indigo-500/20`
+                        : style.border
+                    } rounded-xl p-2.5 shadow-2xl cursor-move transition-all hover:shadow-xl`}
+                  >
+                    {/* Connection Input Port */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (connectingSourceId) handleConnectClick(node.id);
+                      }}
+                      title="Input Connection Port"
+                      className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
+                    >
+                      in
+                    </div>
+
+                    {/* Connection Output Port */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConnectClick(node.id);
+                      }}
+                      title="Output Connection Port"
+                      className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
+                    >
+                      out
+                    </div>
+
+                    {/* LabVIEW Compact Header Pill */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 truncate">
+                        <span className={`text-xs font-bold truncate ${style.text}`}>{node.data.label}</span>
+                      </div>
+
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={(e) => toggleNodeExpand(node.id, e)}
+                          className="text-[10px] px-1.5 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold border border-gray-700"
+                          title={isExpanded ? "Collapse Node" : "Expand LabVIEW View"}
+                          aria-label="Toggle node detail view"
+                        >
+                          {isExpanded ? "▲" : "▼"}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeNode(node.id);
+                          }}
+                          className="text-xs text-rose-400 hover:text-rose-300 p-0.5 rounded hover:bg-rose-950/50"
+                          aria-label="Remove node"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded LabVIEW Detail Card */}
+                    {isExpanded && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-800/80 space-y-1.5 text-[11px] animate-fadeIn">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500 font-mono text-[10px]">{node.id}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${style.badge}`}>
+                            {node.data.origin}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] font-mono text-gray-400 truncate">
+                          {node.data.func_name || node.data.node_type}
+                        </p>
+
+                        <div className="space-y-0.5 text-gray-400 pt-1 border-t border-gray-800/50">
+                          <div>
+                            <span className="text-gray-500">In:</span> {node.data.contract.reads.join(", ") || "none"}
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Out:</span> {node.data.contract.writes.join(", ") || "none"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
 
-          {/* Canvas Right Click Context Menu */}
+          {/* Canvas Context Menu */}
           {contextMenuPos && (
             <div
               style={{ left: `${contextMenuPos.x}px`, top: `${contextMenuPos.y}px` }}
@@ -1024,13 +1218,13 @@ export default function App() {
           {/* Bottom Status Bar */}
           <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg">
             <span>Status: <strong className="text-gray-200">{statusMessage}</strong></span>
-            <span>Target Engine: <strong className="text-indigo-400">WPipe v2.5.8</strong></span>
+            <span>Target Engine: <strong className="text-indigo-400 font-heading">WPipe v2.5.8</strong></span>
           </div>
         </main>
 
         {/* Right Inspector Panel */}
-        <aside className="w-88 bg-gray-900 border-l border-gray-800 flex flex-col z-10">
-          <div className="grid grid-cols-2 border-b border-gray-800 bg-gray-950 text-xs font-semibold text-gray-400">
+        <aside className="w-88 bg-gray-900/95 border-l border-gray-800/80 flex flex-col z-10 glass-panel">
+          <div className="grid grid-cols-2 border-b border-gray-800/80 bg-gray-950 text-xs font-semibold text-gray-400">
             <button
               onClick={() => setInspectorTab("properties")}
               className={`py-3 text-center border-b-2 transition ${
@@ -1117,11 +1311,11 @@ export default function App() {
                 /* CODE & NOTES TAB */
                 <div className="space-y-4 text-xs">
                   <div>
-                    <label className="block text-purple-300 font-bold mb-1">📝 Developer Notes / Agent Instructions</label>
+                    <label className="block text-purple-300 font-bold mb-1 font-heading">📝 Developer Notes / Agent Instructions</label>
                     <textarea
                       rows={4}
                       placeholder="Add developer notes or agent refinement instructions here..."
-                      className="w-full bg-gray-950 border border-purple-800/80 rounded-lg p-2.5 text-gray-200 text-xs resize-none focus:outline-none focus:border-purple-500"
+                      className="w-full bg-gray-950 border border-purple-800/80 rounded-lg p-2.5 text-gray-200 text-xs resize-none focus:outline-none"
                       value={selectedNode.data.notes || ""}
                       onChange={(e) => {
                         const notes = e.target.value;
@@ -1155,7 +1349,7 @@ export default function App() {
       {showAiModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-purple-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-purple-300 flex items-center gap-2">
+            <h3 className="text-base font-bold text-purple-300 flex items-center gap-2 font-heading">
               <span>✨ Create AI Custom Step</span>
             </h3>
             <p className="text-xs text-gray-400">
@@ -1195,7 +1389,7 @@ export default function App() {
               </button>
               <button
                 onClick={handleCreateAiStep}
-                className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow"
+                className="btn-glossy px-4 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold shadow"
               >
                 Create AI Step
               </button>
@@ -1209,10 +1403,10 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="text-lg font-bold text-gray-100 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-100 flex items-center gap-2 font-heading">
                 <span>🛡️ Quality Verification Results</span>
               </h3>
-              <button onClick={() => setVerificationModal(null)} className="text-gray-400 hover:text-white font-bold p-1">
+              <button onClick={() => setVerificationModal(null)} className="text-gray-400 hover:text-white font-bold p-1" aria-label="Close modal">
                 ✕
               </button>
             </div>
@@ -1238,7 +1432,7 @@ export default function App() {
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setVerificationModal(null)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all"
+                className="btn-glossy px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-all"
               >
                 Close Results
               </button>
