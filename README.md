@@ -1,7 +1,6 @@
 # wpipe-studio
 
-**SaaS multi-tenant estilo n8n para diseñar pipelines WPipe y generar microservicios
-Python verificados, listos para producción.**
+**SaaS multi-tenant estilo n8n para diseñar pipelines WPipe y generar microservicios Python verificados, listos para producción.**
 
 > **Agentes de IA:** lee [`AGENTS.md`](./AGENTS.md) **completo antes de tocar nada.**
 > Contiene las decisiones cerradas (`[DECIDIDO]`), el diseño del IR, los controles de
@@ -23,17 +22,40 @@ Si algo falla, no hay ZIP.
 
 ---
 
+## Tecnologías y Librerías Principales
+
+- **FastAPI**: Framework web asíncrono de alto rendimiento para la API backend (`/api/v1`).
+- **Pydantic v2**: Validación de datos estricta y esquemas del IR (`CanvasIR`, `SemanticIR`, `TargetIR`).
+- **React 19 & TypeScript**: Interfaz visual de usuario para el Canvas de diseño de pipelines.
+- **Zod**: Validación de esquemas del IR en el frontend espejo de Pydantic.
+- **Vite & Tailwind CSS**: Bundler ultrarrápido y framework de estilos utilitarios para la interfaz SaaS.
+- **Pytest**: Suite de pruebas automatizadas con cobertura de código.
+- **Docker**: Entorno aislado y efímero para la ejecución de pruebas y verificación de calidad.
+
+---
+
+## Cómo ejecutar los tests
+
+### 1. Ejecución local con pytest
+```bash
+cd backend
+python3 -m pytest -q
+```
+
+### 2. Ejecución dentro del contenedor Docker
+```bash
+./run_tests_docker.sh
+```
+
+---
+
 ## Estado
 
 | | |
 |---|---|
-| **Fase** | Diseño. Un commit inicial, sin código todavía. |
-| **Ecosistema** | Vive en `wpipe_os/` junto a `wpipe` 2.5.8, `wpipe-steps` (**196 steps**),
-  `wpipe-plugins`, `wpipe-mcp` 0.4.1 (11 tools MCP), `wpipe-api`. |
-| **Catálogo** | `steps_catalog.json` es el **manifiesto de release**: fuente de verdad.
-  No se copia; se consulta por GET con cache por hash. Lo que no está, está en desarrollo. |
-| **Próximo paso** | Sprint 0 — cimientos + spec del IR. Ver `AGENTS.md` §9. |
-| **Bloqueante** | Refactor de `wpipe-mcp`: extraer la lógica inline de `server.py` a módulos puros. Ver `AGENTS.md` §2.2. |
+| **Fase** | Sprint 0 completado — Cimientos, IR Pydantic/Zod, Catalog Service y Canvas UI. |
+| **Ecosistema** | Vive en `wpipe_os/` junto a `wpipe` 2.5.8, `wpipe-steps` (**196 steps**), `wpipe-plugins`, `wpipe-mcp` 0.4.1 (11 tools MCP), `wpipe-api`. |
+| **Catálogo** | `steps_catalog.json` es el **manifiesto de release**: fuente de verdad. No se copia; se consulta por GET con cache por hash (`sha256`). |
 
 ---
 
