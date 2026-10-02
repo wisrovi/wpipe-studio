@@ -110,14 +110,45 @@ class CatalogService:
                 with open(self.catalog_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 for raw in data:
+                    name = raw.get("name", "")
+                    category = raw.get("category", "general")
+                    namespace = raw.get("namespace", "")
+
+                    # Dynamic Parameter Schema Inference per Step Class/Category
+                    dynamic_params: list[ParamSpec] = []
+                    if "redis" in name or "redis" in namespace or "communication" in category:
+                        dynamic_params = [
+                            ParamSpec(name="host", annotation="str", default="127.0.0.1"),
+                            ParamSpec(name="port", annotation="int", default=6379),
+                            ParamSpec(name="db", annotation="int", default=0),
+                            ParamSpec(name="password", annotation="str | None", default=None),
+                        ]
+                    elif "vision" in category or "yolo" in name or "ocr" in name or "media" in category:
+                        dynamic_params = [
+                            ParamSpec(name="model_path", annotation="str", default="/models/yolov8n.pt"),
+                            ParamSpec(name="conf_threshold", annotation="float", default=0.25),
+                            ParamSpec(name="device", annotation="str", default="cuda:0"),
+                        ]
+                    elif "http" in name or "waf" in name or "connectivity" in category or "nmap" in name:
+                        dynamic_params = [
+                            ParamSpec(name="endpoint_url", annotation="str", default="https://api.example.com/v1"),
+                            ParamSpec(name="method", annotation="str", default="POST"),
+                            ParamSpec(name="timeout", annotation="int", default=30),
+                        ]
+                    else:
+                        dynamic_params = [
+                            ParamSpec(name="config_dict", annotation="dict", default={}),
+                            ParamSpec(name="timeout", annotation="int", default=30),
+                        ]
+
                     entries.append(
                         CatalogEntry(
-                            name=raw.get("name", ""),
+                            name=name,
                             func_name=raw.get("func_name", ""),
-                            namespace=raw.get("namespace", ""),
+                            namespace=namespace,
                             version=raw.get("version", "v1.0"),
                             description=raw.get("description", ""),
-                            category=raw.get("category", "general"),
+                            category=category,
                             subcategory1=raw.get("subcategory1", ""),
                             subcategory2=raw.get("subcategory2", ""),
                             subcategory3=raw.get("subcategory3", ""),
@@ -125,12 +156,9 @@ class CatalogService:
                             repo="Official",
                             author=raw.get("author", ""),
                             how_to_use=raw.get("how_to_use", ""),
-                            params=[
-                                ParamSpec(name="config", annotation="dict | None", default=None),
-                                ParamSpec(name="timeout", annotation="int", default=30),
-                            ],
-                            response_key="response" if "http" in raw.get("name", "") else "result",
-                            code_snippet=f"from {raw.get('namespace', '')} import {raw.get('func_name', '')}\n\n# Official Step: {raw.get('name', '')}\n# Category: {raw.get('category', '')} / {raw.get('subcategory1', '')}\n# Description: {raw.get('description', '')}",
+                            params=dynamic_params,
+                            response_key="response" if "http" in name else "result",
+                            code_snippet=f"from {namespace} import {raw.get('func_name', '')}\n\n# Official Step: {name}\n# Category: {category} / {raw.get('subcategory1', '')}\n# Description: {raw.get('description', '')}",
                         )
                     )
             except Exception:
@@ -161,8 +189,9 @@ class CatalogService:
                             author=raw.get("author", "Community"),
                             how_to_use=raw.get("how_to_use", ""),
                             params=[
-                                ParamSpec(name="model_path", annotation="str | None", default=None),
+                                ParamSpec(name="model_path", annotation="str", default="/models/yolov8n.pt"),
                                 ParamSpec(name="conf", annotation="float", default=0.25),
+                                ParamSpec(name="device", annotation="str", default="cuda:0"),
                             ],
                             response_key="results",
                             code_snippet=f"from {ns} import {raw.get('func_name', '')}\n\n# Community Plugin: {raw.get('name', '')}\n# Author: {raw.get('author', '')}",
