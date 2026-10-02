@@ -35,6 +35,9 @@ class NodeData(BaseModel):
     merge_policy: Literal["accumulate", "last_wins"] = "accumulate"
     notes: str | None = None
     code_snippet: str | None = None
+    parent_id: str | None = None
+    slot_type: Literal["if_body", "else_body", "loop_body", "parallel_body"] | None = None
+    has_else: bool | None = None
 
 
 class Position(BaseModel):

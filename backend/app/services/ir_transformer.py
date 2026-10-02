@@ -13,13 +13,16 @@ def transform_canvas_to_semantic(canvas_ir: CanvasIR, pipeline_name: str = "main
     adj: dict[str, list[str]] = {node.id: [] for node in canvas_ir.nodes}
     in_degree: dict[str, int] = {node.id: 0 for node in canvas_ir.nodes}
 
+    # Separate root level nodes from nested nodes attached to parent C-blocks
+    root_nodes = [node for node in canvas_ir.nodes if not node.data.parent_id]
+
     for edge in canvas_ir.edges:
         if edge.source in adj and edge.target in in_degree:
             adj[edge.source].append(edge.target)
             in_degree[edge.target] += 1
 
     # Topological sort for execution order
-    queue = [node_id for node_id, degree in in_degree.items() if degree == 0]
+    queue = [node.id for node in root_nodes if in_degree[node.id] == 0]
     ordered_ids: list[str] = []
 
     while queue:
@@ -27,17 +30,12 @@ def transform_canvas_to_semantic(canvas_ir: CanvasIR, pipeline_name: str = "main
         ordered_ids.append(curr)
         for neighbor in adj.get(curr, []):
             in_degree[neighbor] -= 1
-            if in_degree[neighbor] == 0:
+            if in_degree[neighbor] == 0 and not node_map[neighbor].data.parent_id:
                 queue.append(neighbor)
 
-    steps: list[SemanticStep] = []
-    global_reads: set[str] = set()
-    global_writes: set[str] = set()
-
-    for node_id in ordered_ids:
-        node = node_map[node_id]
+    # Helper function to build SemanticStep recursively
+    def build_semantic_step(node) -> SemanticStep:
         data = node.data
-
         step = SemanticStep(
             step_id=node.id,
             name=data.label,
@@ -51,10 +49,41 @@ def transform_canvas_to_semantic(canvas_ir: CanvasIR, pipeline_name: str = "main
             for_iterations=data.for_iterations,
             merge_policy=data.merge_policy,
         )
+
+        # Children nested inside IF_BODY slot
+        if_children = [
+            build_semantic_step(child)
+            for child in canvas_ir.nodes
+            if child.data.parent_id == node.id and child.data.slot_type in ("if_body", "loop_body", "parallel_body")
+        ]
+        # Children nested inside ELSE_BODY slot
+        else_children = [
+            build_semantic_step(child)
+            for child in canvas_ir.nodes
+            if child.data.parent_id == node.id and child.data.slot_type == "else_body"
+        ]
+
+        if data.node_type == "condition":
+            step.branch_true = if_children
+            step.branch_false = else_children
+        elif data.node_type == "for":
+            step.loop_steps = if_children
+        elif data.node_type == "parallel":
+            step.parallel_steps = if_children
+
+        return step
+
+    steps: list[SemanticStep] = []
+    global_reads: set[str] = set()
+    global_writes: set[str] = set()
+
+    for node_id in ordered_ids:
+        node = node_map[node_id]
+        step = build_semantic_step(node)
         steps.append(step)
 
-        global_reads.update(data.contract.reads)
-        global_writes.update(data.contract.writes)
+        global_reads.update(node.data.contract.reads)
+        global_writes.update(node.data.contract.writes)
 
     return SemanticIR(
         pipeline_name=pipeline_name,

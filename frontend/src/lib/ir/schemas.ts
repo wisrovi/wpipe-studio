@@ -26,6 +26,9 @@ export const NodeDataSchema = z.object({
   merge_policy: z.enum(["accumulate", "last_wins"]).default("accumulate"),
   notes: z.string().nullable().optional(),
   code_snippet: z.string().nullable().optional(),
+  parent_id: z.string().nullable().optional(),
+  slot_type: z.enum(["if_body", "else_body", "loop_body", "parallel_body"]).nullable().optional(),
+  has_else: z.boolean().nullable().optional(),
 });
 export type NodeData = z.infer<typeof NodeDataSchema>;
 
