@@ -34,6 +34,12 @@ export default function App() {
   // Mobile Drawer state
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
+  // Mermaid & Pipeline JSON Preview Modals
+  const [showMermaidModal, setShowMermaidModal] = useState<boolean>(false);
+  const [mermaidCode, setMermaidCode] = useState<string>("");
+  const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
+  const [pipelineJsonText, setPipelineJsonText] = useState<string>("");
+
   // Loading states
   const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
   const [dryRunLoading, setDryRunLoading] = useState<boolean>(false);
@@ -532,6 +538,32 @@ export default function App() {
     setStatusMessage(`Created AI Step '${aiStepName}'`);
   };
 
+  // Generate Mermaid Diagram (VSCode WPipe Extension format)
+  const generateMermaidDiagram = () => {
+    let lines = ["graph TD"];
+    nodes.forEach((n) => {
+      const label = n.data.label.replace(/"/g, "'");
+      const shape = n.data.node_type === "condition" ? `{{"${label}"}}` : `["${label}"]`;
+      lines.push(`    ${n.id}${shape}`);
+    });
+    edges.forEach((e) => {
+      lines.push(`    ${e.source} --> ${e.target}`);
+    });
+    const code = lines.join("\n");
+    setMermaidCode(code);
+    setShowMermaidModal(true);
+    setStatusMessage("Generated Mermaid flowchart preview!");
+  };
+
+  // Export Pipeline JSON (WPipe Standard JSON format)
+  const exportPipelineJson = () => {
+    const canvasIr: CanvasIR = { nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } };
+    const jsonStr = JSON.stringify(canvasIr, null, 2);
+    setPipelineJsonText(jsonStr);
+    setShowJsonModal(true);
+    setStatusMessage("Generated Pipeline JSON representation!");
+  };
+
   // Dry Run Verification Handler
   const handleDryRun = async () => {
     setDryRunLoading(true);
@@ -731,6 +763,20 @@ export default function App() {
         </div>
 
         <div className="flex items-center space-x-2.5">
+          <button
+            onClick={generateMermaidDiagram}
+            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-950/80 hover:bg-sky-900 text-sky-300 border border-sky-700 transition"
+            title="Render Mermaid Flowchart (VSCode WPipe Extension format)"
+          >
+            📊 Mermaid Graph
+          </button>
+          <button
+            onClick={exportPipelineJson}
+            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700 transition"
+            title="Export Pipeline JSON representation"
+          >
+            📄 Export JSON
+          </button>
           <button
             onClick={() => setShowFaqModal(true)}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-800 transition"
@@ -1722,6 +1768,88 @@ export default function App() {
                 className="btn-glossy px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-all"
               >
                 Close Results
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mermaid Graph Render Preview Modal */}
+      {showMermaidModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl glass-panel">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div>
+                <h3 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-300 font-heading">
+                  📊 Mermaid Pipeline Flowchart
+                </h3>
+                <p className="text-xs text-gray-400">Flowchart representation compatible with VSCode WPipe extension.</p>
+              </div>
+              <button onClick={() => setShowMermaidModal(false)} className="text-gray-400 hover:text-white font-bold p-1 text-lg">
+                ✕
+              </button>
+            </div>
+
+            <pre className="bg-gray-950 p-4 rounded-xl border border-sky-900/60 font-mono text-xs text-sky-300 overflow-x-auto whitespace-pre-wrap max-h-96">
+              {mermaidCode}
+            </pre>
+
+            <div className="flex justify-between items-center pt-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(mermaidCode);
+                  setStatusMessage("Copied Mermaid code to clipboard!");
+                }}
+                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded-lg text-xs font-semibold border border-gray-700"
+              >
+                📋 Copy Code
+              </button>
+              <button
+                onClick={() => setShowMermaidModal(false)}
+                className="btn-glossy px-4 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-semibold shadow"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Pipeline JSON Modal */}
+      {showJsonModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-amber-800/80 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl glass-panel">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div>
+                <h3 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-emerald-300 font-heading">
+                  📄 Exported Pipeline JSON (CanvasIR)
+                </h3>
+                <p className="text-xs text-gray-400">Complete JSON representation of your configured pipeline nodes and edges.</p>
+              </div>
+              <button onClick={() => setShowJsonModal(false)} className="text-gray-400 hover:text-white font-bold p-1 text-lg">
+                ✕
+              </button>
+            </div>
+
+            <pre className="bg-gray-950 p-4 rounded-xl border border-amber-900/60 font-mono text-xs text-amber-300 overflow-x-auto whitespace-pre max-h-96">
+              {pipelineJsonText}
+            </pre>
+
+            <div className="flex justify-between items-center pt-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(pipelineJsonText);
+                  setStatusMessage("Copied Pipeline JSON to clipboard!");
+                }}
+                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-amber-300 rounded-lg text-xs font-semibold border border-gray-700"
+              >
+                📋 Copy JSON
+              </button>
+              <button
+                onClick={() => setShowJsonModal(false)}
+                className="btn-emerald-glossy px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold shadow"
+              >
+                Continue Editing
               </button>
             </div>
           </div>
