@@ -598,10 +598,11 @@ export default function App() {
     };
     setNodes((prev) => [...prev, newNode]);
     setSelectedNode(newNode);
+    addStepBlockToWorkspace(aiStepName, "ai_described", "described");
     setShowAiModal(false);
     setAiStepName("");
     setAiPrompt("");
-    setStatusMessage(`Created AI Step '${aiStepName}'`);
+    setStatusMessage(`Created AI Step '${aiStepName}' and added to canvas`);
   };
 
   // Generate Mermaid Diagram (VSCode WPipe Extension format)
