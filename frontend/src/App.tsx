@@ -775,52 +775,10 @@ export default function App() {
         <div className="flex items-center space-x-2.5">
           <button
             onClick={generateMermaidDiagram}
-            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-950/80 hover:bg-sky-900 text-sky-300 border border-sky-700 transition"
-            title="Render Mermaid Flowchart (VSCode WPipe Extension format)"
+            className="px-4 py-2 text-xs font-bold rounded-lg bg-sky-950/90 hover:bg-sky-900 text-sky-300 border border-sky-600 transition shadow-md shadow-sky-950/50 flex items-center gap-2"
+            title="Render Mermaid Flowchart Preview"
           >
-            📊 Mermaid Graph
-          </button>
-          <button
-            onClick={exportPipelineJson}
-            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700 transition"
-            title="Export Pipeline JSON representation"
-          >
-            📄 Export JSON
-          </button>
-          <button
-            onClick={() => setShowFaqModal(true)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-800 transition"
-            title="Open Interactive FAQ & Architecture Guide"
-          >
-            ❓ FAQ & Guide
-          </button>
-          <button
-            onClick={triggerSplash}
-            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition"
-            title="Replay Splash Screen Animation"
-          >
-            ✨ Splash
-          </button>
-          <button
-            onClick={() => setGlobalCompactView(!globalCompactView)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition"
-            title="Toggle compact LabVIEW view"
-          >
-            {globalCompactView ? "👁️ Detailed View" : "👁️ LabVIEW View"}
-          </button>
-          <button
-            onClick={handleDryRun}
-            disabled={dryRunLoading}
-            className="btn-glossy px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 text-white transition shadow-md shadow-indigo-600/20 disabled:opacity-50"
-          >
-            {dryRunLoading ? "Verifying..." : "🚀 Dry-Run Verify"}
-          </button>
-          <button
-            onClick={handleGenerateZip}
-            disabled={zipLoading}
-            className="btn-emerald-glossy px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 text-white transition shadow-md shadow-emerald-600/20 disabled:opacity-50"
-          >
-            {zipLoading ? "Building..." : "📦 Generate ZIP"}
+            <span>📊 Render Flow Graph</span>
           </button>
         </div>
       </header>
@@ -923,61 +881,38 @@ export default function App() {
           </div>
 
           {/* Navigation Tabs Header */}
-          <div className="grid grid-cols-5 border-b border-gray-800/80 bg-gray-950 text-[11px] font-semibold text-gray-400">
+          <div className="grid grid-cols-3 border-b border-gray-800/80 bg-gray-950 text-[11px] font-semibold text-gray-400">
             <button
               onClick={() => setActiveTab("official")}
-              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
-                activeTab === "official" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
+                activeTab === "official" || activeTab === "plugins" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              <span>📦 Steps</span>
-              {searchQuery && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
-                  {searchedOfficial.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab("plugins")}
-              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
-                activeTab === "plugins" ? "border-emerald-500 text-emerald-400 bg-gray-900" : "border-transparent hover:text-gray-200"
-              }`}
-            >
-              <span>🔌 Plugins</span>
-              {searchQuery && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">
-                  {searchedPlugins.length}
-                </span>
-              )}
+              <span>🌐 Catalog</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
+                {searchedOfficial.length + searchedPlugins.length}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab("user")}
-              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
                 activeTab === "user" ? "border-amber-500 text-amber-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              <span>📁 User</span>
-              {searchQuery && (
+              <span>📂 Upload .py</span>
+              {userStates.length > 0 && (
                 <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-mono">
-                  {searchedUser.length}
+                  {userStates.length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab("ai")}
-              className={`py-2.5 text-center border-b-2 transition ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
                 activeTab === "ai" ? "border-purple-500 text-purple-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              ✨ AI
-            </button>
-            <button
-              onClick={() => setActiveTab("inuse")}
-              className={`py-2.5 text-center border-b-2 transition ${
-                activeTab === "inuse" ? "border-sky-500 text-sky-400 bg-gray-900" : "border-transparent hover:text-gray-200"
-              }`}
-            >
-              📊 In Use
+              <span>✨ Generate AI</span>
             </button>
           </div>
 
@@ -1051,6 +986,9 @@ export default function App() {
                                           <div className="flex items-center justify-between">
                                             <span className="text-xs font-extrabold text-white drop-shadow">
                                               {step.name}
+                                            </span>
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-200 border border-blue-400 font-mono font-bold uppercase">
+                                              {step.repo === "Official" ? "Official" : "Community"}
                                             </span>
                                           </div>
                                           <p className="text-[10px] text-white/80 mt-1 line-clamp-1">{step.description}</p>
