@@ -417,11 +417,40 @@ export default function App() {
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
     if (!draggingNodeId || !canvasRef.current) return;
     const canvasRect = canvasRef.current.getBoundingClientRect();
+    const targetNode = nodes.find((n) => n.id === draggingNodeId);
+    if (!targetNode) return;
+
     const newX = Math.max(10, e.clientX - canvasRect.left - dragOffset.x);
     const newY = Math.max(10, e.clientY - canvasRect.top - dragOffset.y);
 
+    const deltaX = newX - targetNode.position.x;
+    const deltaY = newY - targetNode.position.y;
+
+    // Helper function to find all descendant node IDs recursively
+    const getDescendants = (parentId: string): string[] => {
+      const children = nodes.filter((n) => n.data.parent_id === parentId).map((n) => n.id);
+      let all = [...children];
+      children.forEach((childId) => {
+        all = all.concat(getDescendants(childId));
+      });
+      return all;
+    };
+
+    const familyIds = new Set([draggingNodeId, ...getDescendants(draggingNodeId)]);
+
     setNodes((prev) =>
-      prev.map((n) => (n.id === draggingNodeId ? { ...n, position: { x: newX, y: newY } } : n))
+      prev.map((n) => {
+        if (familyIds.has(n.id)) {
+          return {
+            ...n,
+            position: {
+              x: Math.max(10, n.position.x + deltaX),
+              y: Math.max(10, n.position.y + deltaY),
+            },
+          };
+        }
+        return n;
+      })
     );
   };
 
