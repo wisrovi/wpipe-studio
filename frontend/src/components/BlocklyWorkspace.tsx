@@ -77,6 +77,47 @@ export function registerWPipeBlocklyBlocks() {
       this.setTooltip("Executes nested steps concurrently in parallel");
     },
   };
+
+  // 6. WHILE Loop Block (Control Orange)
+  Blockly.Blocks["wpipe_while"] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField("🔁 REPEAT WHILE")
+        .appendField(new Blockly.FieldTextInput("status_code == 200"), "CONDITION");
+      this.appendStatementInput("DO").setCheck(null).appendField("DO");
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(36); // Scratch Control Orange
+      this.setTooltip("Repeats nested steps while condition evaluates to true");
+    },
+  };
+}
+
+// Global reference store for workspace injection helper
+let activeWorkspaceRef: Blockly.WorkspaceSvg | null = null;
+
+export function addStepBlockToWorkspace(stepName: string, namespace: string, stepOrigin: string = "catalog") {
+  if (!activeWorkspaceRef) return;
+  const block = activeWorkspaceRef.newBlock("wpipe_step");
+  block.setFieldValue(stepName, "STEP_NAME");
+  block.setFieldValue(namespace, "NAMESPACE");
+  block.initSvg();
+  block.render();
+  block.moveBy(150 + Math.floor(Math.random() * 40), 100 + Math.floor(Math.random() * 40));
+  if (typeof (block as any).select === "function") {
+    (block as any).select();
+  }
+}
+
+export function addControlBlockToWorkspace(type: "wpipe_if" | "wpipe_if_else" | "wpipe_for" | "wpipe_while" | "wpipe_parallel") {
+  if (!activeWorkspaceRef) return;
+  const block = activeWorkspaceRef.newBlock(type);
+  block.initSvg();
+  block.render();
+  block.moveBy(150 + Math.floor(Math.random() * 40), 100 + Math.floor(Math.random() * 40));
+  if (typeof (block as any).select === "function") {
+    (block as any).select();
+  }
 }
 
 interface BlocklyWorkspaceProps {
@@ -100,6 +141,7 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceC
             <block type="wpipe_if"></block>
             <block type="wpipe_if_else"></block>
             <block type="wpipe_for"></block>
+            <block type="wpipe_while"></block>
             <block type="wpipe_parallel"></block>
           </category>
         </xml>
@@ -126,6 +168,7 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceC
       });
 
       workspaceRef.current = ws;
+      activeWorkspaceRef = ws;
 
       // Add default starter block stack
       const block1 = ws.newBlock("wpipe_step");
