@@ -426,6 +426,40 @@ export default function App() {
   };
 
   const handleCanvasMouseUp = () => {
+    if (draggingNodeId) {
+      const dragged = nodes.find((n) => n.id === draggingNodeId);
+      if (dragged) {
+        // Find if dragged node was dropped inside proximity of a Control C-Block (IF, FOR, PARALLEL)
+        const parentCandidate = nodes.find((n) => {
+          if (n.id === dragged.id) return false;
+          if (n.data.node_type !== "condition" && n.data.node_type !== "for" && n.data.node_type !== "parallel") return false;
+          const dx = Math.abs(n.position.x - dragged.position.x);
+          const dy = Math.abs(n.position.y - dragged.position.y);
+          return dx < 140 && dy < 120;
+        });
+
+        if (parentCandidate) {
+          let slot: "if_body" | "else_body" | "loop_body" | "parallel_body" = "if_body";
+          if (parentCandidate.data.node_type === "for") slot = "loop_body";
+          else if (parentCandidate.data.node_type === "parallel") slot = "parallel_body";
+          else if (parentCandidate.data.node_type === "condition") {
+            const relativeY = dragged.position.y - parentCandidate.position.y;
+            if (parentCandidate.data.has_else && relativeY > 70) {
+              slot = "else_body";
+            }
+          }
+
+          setNodes((prev) =>
+            prev.map((n) =>
+              n.id === dragged.id
+                ? { ...n, data: { ...n.data, parent_id: parentCandidate.id, slot_type: slot } }
+                : n
+            )
+          );
+          setStatusMessage(`Snapped '${dragged.data.label}' inside '${parentCandidate.data.label}' (${slot})!`);
+        }
+      }
+    }
     setDraggingNodeId(null);
   };
 
@@ -1358,17 +1392,159 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Scratch C-Shape Mouth Area for IF/FOR Control Blocks */}
-                    {isControl && (
-                      <div className="scratch-c-mouth flex flex-col justify-center items-center">
-                        <span className="text-[10px] font-bold text-white/80 uppercase font-heading tracking-wider">
-                          {node.data.node_type === "condition"
-                            ? `IF (${node.data.condition_expression || "condition"}) THEN`
-                            : `REPEAT (${node.data.for_iterations || 5} TIMES)`}
-                        </span>
-                        <span className="text-[9px] text-white/60 italic mt-0.5">Sub-pipeline steps executed inside</span>
+                    {/* Scratch C-Shape Mouth Area for IF/ELSE, FOR, and PARALLEL Control Blocks */}
+                    {isControl || node.data.node_type === "parallel" ? (
+                      <div className="space-y-2 mt-2">
+                        {node.data.node_type === "condition" && (
+                          <>
+                            {/* IF (True Branch) Slot */}
+                            <div className="scratch-c-mouth bg-black/40 border border-white/30 rounded-lg p-2 flex flex-col gap-1">
+                              <span className="text-[10px] font-bold text-amber-200 uppercase font-heading tracking-wider flex items-center justify-between">
+                                <span>IF ({node.data.condition_expression || "condition"}) THEN</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const val = !node.data.has_else;
+                                    setNodes((prev) =>
+                                      prev.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, has_else: val } } : n))
+                                    );
+                                  }}
+                                  className="text-[9px] px-1.5 py-0.5 rounded bg-amber-950 hover:bg-amber-900 border border-amber-700 text-amber-300 font-normal"
+                                >
+                                  {node.data.has_else ? "Remove ELSE" : "+ Add ELSE"}
+                                </button>
+                              </span>
+
+                              {/* Nested Children in IF Branch */}
+                              {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "if_body").length === 0 ? (
+                                <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to execute on TRUE</span>
+                              ) : (
+                                <div className="space-y-1.5 pl-2 border-l-2 border-amber-400">
+                                  {nodes
+                                    .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "if_body")
+                                    .map((child) => (
+                                      <div key={child.id} className="p-1.5 bg-amber-900/60 border border-amber-500/80 rounded text-[10px] font-bold text-amber-100 flex items-center justify-between">
+                                        <span>{child.data.label}</span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setNodes((prev) =>
+                                              prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
+                                            );
+                                          }}
+                                          className="text-white hover:text-rose-300 text-[10px]"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* ELSE (False Branch) Slot if enabled */}
+                            {node.data.has_else && (
+                              <div className="scratch-c-mouth bg-black/40 border border-purple-500/40 rounded-lg p-2 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-purple-200 uppercase font-heading tracking-wider">
+                                  ELSE BRANCH
+                                </span>
+
+                                {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "else_body").length === 0 ? (
+                                  <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to execute on FALSE</span>
+                                ) : (
+                                  <div className="space-y-1.5 pl-2 border-l-2 border-purple-400">
+                                    {nodes
+                                      .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "else_body")
+                                      .map((child) => (
+                                        <div key={child.id} className="p-1.5 bg-purple-900/60 border border-purple-500/80 rounded text-[10px] font-bold text-purple-100 flex items-center justify-between">
+                                          <span>{child.data.label}</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setNodes((prev) =>
+                                                prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
+                                              );
+                                            }}
+                                            className="text-white hover:text-rose-300 text-[10px]"
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
+                                      ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {node.data.node_type === "for" && (
+                          <div className="scratch-c-mouth bg-black/40 border border-sky-400/40 rounded-lg p-2 flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-sky-200 uppercase font-heading tracking-wider">
+                              REPEAT ({node.data.for_iterations || 5} TIMES)
+                            </span>
+
+                            {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "loop_body").length === 0 ? (
+                              <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to loop</span>
+                            ) : (
+                              <div className="space-y-1.5 pl-2 border-l-2 border-sky-400">
+                                {nodes
+                                  .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "loop_body")
+                                  .map((child) => (
+                                    <div key={child.id} className="p-1.5 bg-sky-900/60 border border-sky-500/80 rounded text-[10px] font-bold text-sky-100 flex items-center justify-between">
+                                      <span>{child.data.label}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setNodes((prev) =>
+                                            prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
+                                          );
+                                        }}
+                                        className="text-white hover:text-rose-300 text-[10px]"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {node.data.node_type === "parallel" && (
+                          <div className="scratch-c-mouth bg-black/40 border border-emerald-400/40 rounded-lg p-2 flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-emerald-200 uppercase font-heading tracking-wider">
+                              RUN IN PARALLEL
+                            </span>
+
+                            {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "parallel_body").length === 0 ? (
+                              <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to run concurrently</span>
+                            ) : (
+                              <div className="space-y-1.5 pl-2 border-l-2 border-emerald-400">
+                                {nodes
+                                  .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "parallel_body")
+                                  .map((child) => (
+                                    <div key={child.id} className="p-1.5 bg-emerald-900/60 border border-emerald-500/80 rounded text-[10px] font-bold text-emerald-100 flex items-center justify-between">
+                                      <span>{child.data.label}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setNodes((prev) =>
+                                            prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
+                                          );
+                                        }}
+                                        className="text-white hover:text-rose-300 text-[10px]"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ) : null}
 
                     {/* Expanded Detail Card */}
                     {isExpanded && (
