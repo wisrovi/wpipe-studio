@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
 import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace } from "./components/BlocklyWorkspace";
 
+interface ParamSpec {
+  name: string;
+  annotation?: string;
+  default?: any;
+}
+
 interface CatalogStep {
   name: string;
   func_name: string;
@@ -14,6 +20,7 @@ interface CatalogStep {
   code_snippet?: string;
   version?: string;
   how_to_use?: string;
+  params?: ParamSpec[];
 }
 
 interface FaqItem {
@@ -43,30 +50,60 @@ export default function App() {
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [pipelineJsonText, setPipelineJsonText] = useState<string>("");
 
+  const [catalog, setCatalog] = useState<CatalogStep[]>([]);
+  const [userStates, setUserStates] = useState<CatalogStep[]>([]);
+
   // Block Parameter Config Modal State
   const [configModalBlock, setConfigModalBlock] = useState<any | null>(null);
-  const [blockParams, setBlockParams] = useState<{ host: string; port: string; timeout: string; extra_notes: string }>({
-    host: "127.0.0.1",
-    port: "6379",
-    timeout: "30",
-    extra_notes: "",
-  });
+  const [dynamicFields, setDynamicFields] = useState<ParamSpec[]>([]);
+  const [blockParamValues, setBlockParamValues] = useState<Record<string, any>>({});
 
   // Register window event handler for Blockly block config click
   useEffect(() => {
     (window as any).onOpenBlockConfigModal = (block: any) => {
       setConfigModalBlock(block);
-      const stepName = block.getFieldValue("STEP_NAME") || "Step";
-      if (stepName.toLowerCase().includes("redis")) {
-        setBlockParams({ host: "127.0.0.1", port: "6379", timeout: "30", extra_notes: "DB: 0" });
+      const stepName = (block.getFieldValue("STEP_NAME") || "").toLowerCase();
+      const ns = (block.getFieldValue("NAMESPACE") || "").toLowerCase();
+
+      // Find matching step in catalog
+      const catalogStep = catalog.find(
+        (s) => s.name.toLowerCase() === stepName || s.func_name.toLowerCase() === stepName || s.namespace.toLowerCase() === ns
+      );
+
+      if (catalogStep && catalogStep.params && catalogStep.params.length > 0) {
+        setDynamicFields(catalogStep.params);
+        const initialVals: Record<string, any> = {};
+        catalogStep.params.forEach((p) => {
+          initialVals[p.name] = p.default ?? "";
+        });
+        setBlockParamValues(initialVals);
+      } else if (stepName.includes("redis") || ns.includes("redis")) {
+        setDynamicFields([
+          { name: "host", annotation: "str", default: "127.0.0.1" },
+          { name: "port", annotation: "int", default: 6379 },
+          { name: "db", annotation: "int", default: 0 },
+          { name: "password", annotation: "str | None", default: "" },
+        ]);
+        setBlockParamValues({ host: "127.0.0.1", port: "6379", db: "0", password: "" });
+      } else if (stepName.includes("yolo") || ns.includes("vision") || stepName.includes("ocr")) {
+        setDynamicFields([
+          { name: "model_path", annotation: "str", default: "/models/yolov8n.pt" },
+          { name: "conf_threshold", annotation: "float", default: 0.25 },
+          { name: "device", annotation: "str", default: "cuda:0" },
+        ]);
+        setBlockParamValues({ model_path: "/models/yolov8n.pt", conf_threshold: "0.25", device: "cuda:0" });
       } else {
-        setBlockParams({ host: "api.example.com", port: "443", timeout: "30", extra_notes: "" });
+        setDynamicFields([
+          { name: "endpoint_url", annotation: "str", default: "https://api.example.com" },
+          { name: "timeout", annotation: "int", default: 30 },
+        ]);
+        setBlockParamValues({ endpoint_url: "https://api.example.com", timeout: "30" });
       }
     };
     return () => {
       delete (window as any).onOpenBlockConfigModal;
     };
-  }, []);
+  }, [catalog]);
 
   // Loading states
   const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
@@ -130,8 +167,6 @@ export default function App() {
     { id: "e2_3", source: "node_2", target: "node_3" },
   ]);
 
-  const [catalog, setCatalog] = useState<CatalogStep[]>([]);
-  const [userStates, setUserStates] = useState<CatalogStep[]>([]);
   const [activeTab, setActiveTab] = useState<"official" | "plugins" | "user" | "ai" | "inuse">("official");
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(nodes[0]);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -1300,54 +1335,37 @@ export default function App() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-gray-300 font-semibold mb-1">Host / Endpoint</label>
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono"
-                  value={blockParams.host}
-                  onChange={(e) => setBlockParams({ ...blockParams, host: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-gray-300 font-semibold mb-1">Port</label>
+              {dynamicFields.map((field) => (
+                <div key={field.name}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-gray-300 font-semibold font-mono">{field.name}</label>
+                    <span className="text-[10px] text-indigo-400 font-mono">({field.annotation || "str"})</span>
+                  </div>
                   <input
                     type="text"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono"
-                    value={blockParams.port}
-                    onChange={(e) => setBlockParams({ ...blockParams, port: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono focus:border-amber-500 focus:outline-none"
+                    placeholder={`Default: ${field.default ?? ""}`}
+                    value={blockParamValues[field.name] ?? ""}
+                    onChange={(e) =>
+                      setBlockParamValues({
+                        ...blockParamValues,
+                        [field.name]: e.target.value,
+                      })
+                    }
                   />
                 </div>
-                <div>
-                  <label className="block text-gray-300 font-semibold mb-1">Timeout (s)</label>
-                  <input
-                    type="text"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono"
-                    value={blockParams.timeout}
-                    onChange={(e) => setBlockParams({ ...blockParams, timeout: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-300 font-semibold mb-1">Extra Notes / Parameters</label>
-                <input
-                  type="text"
-                  placeholder="e.g. db=0, auth_token=..."
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100"
-                  value={blockParams.extra_notes}
-                  onChange={(e) => setBlockParams({ ...blockParams, extra_notes: e.target.value })}
-                />
-              </div>
+              ))}
             </div>
 
             <div className="flex justify-between items-center pt-3 border-t border-gray-800">
               <button
                 onClick={() => {
-                  setBlockParams({ host: "localhost", port: "6379", timeout: "10", extra_notes: "Auto-filled by AI Agent" });
-                  setStatusMessage("AI Agent prefilled default parameters");
+                  const autoVals: Record<string, any> = {};
+                  dynamicFields.forEach((f) => {
+                    autoVals[f.name] = f.default ?? "auto_val";
+                  });
+                  setBlockParamValues(autoVals);
+                  setStatusMessage("AI Agent auto-filled parameters from step schema");
                 }}
                 className="px-3 py-1.5 bg-purple-950 hover:bg-purple-900 text-purple-300 rounded-lg text-xs font-semibold border border-purple-700 transition"
               >
