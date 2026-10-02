@@ -1227,82 +1227,7 @@ export default function App() {
             )}
           </div>
 
-          {/* SVG Connection Overlay */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-            <defs>
-              <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1" />
-              </marker>
-            </defs>
-            {edges.map((edge) => {
-              const srcNode = nodes.find((n) => n.id === edge.source);
-              const tgtNode = nodes.find((n) => n.id === edge.target);
-              if (!srcNode || !tgtNode) return null;
-
-              const isSrcExpanded = expandedNodes[srcNode.id] ?? !globalCompactView;
-
-              const x1 = srcNode.position.x + (isSrcExpanded ? 240 : 180);
-              const y1 = srcNode.position.y + 24;
-              const x2 = tgtNode.position.x;
-              const y2 = tgtNode.position.y + 24;
-
-              const dx = Math.abs(x2 - x1) * 0.5;
-              const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-
-              const midX = (x1 + x2) / 2;
-              const midY = (y1 + y2) / 2;
-
-              return (
-                <g key={edge.id} className="group pointer-events-auto">
-                  {/* Invisible thicker path for easier hover/clicking */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth="16"
-                    className="cursor-pointer"
-                    onClick={() => removeEdge(edge.id)}
-                  />
-                  {/* Visible connection cable */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke="#6366f1"
-                    strokeWidth="3"
-                    markerEnd="url(#arrow)"
-                    className="group-hover:stroke-rose-400 transition-all"
-                  />
-                  {/* Wire Quick Action Tooltip Button (Delete connection or Insert IF) */}
-                  <foreignObject x={midX - 36} y={midY - 14} width="72" height="28" className="overflow-visible">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1 bg-gray-900/95 border border-gray-700 rounded-full px-1.5 py-0.5 shadow-lg">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          insertNodeOnEdge(edge, "condition");
-                        }}
-                        className="text-[9px] px-1 bg-amber-950 hover:bg-amber-900 text-amber-300 rounded font-bold border border-amber-800"
-                        title="Insert IF condition block between these nodes"
-                      >
-                        +IF
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeEdge(edge.id);
-                        }}
-                        className="text-[10px] text-rose-400 hover:text-rose-200 px-1 font-bold"
-                        title="Disconnect cable (Delete Connection)"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </foreignObject>
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* Canvas Nodes Layer: LabVIEW-Style Compact Block Cards */}
+          {/* Canvas Nodes Layer: Scratch Vertical Puzzle Blocks */}
           <div className="relative w-full h-full z-10">
             {nodes.length === 0 ? (
               /* 8. CANVAS EMPTY STATE */
@@ -1342,30 +1267,6 @@ export default function App() {
                         : style.border
                     } p-3 cursor-move transition-all z-10`}
                   >
-                    {/* Connection Input Port (Puzzle Notch Indicator) */}
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (connectingSourceId) handleConnectClick(node.id);
-                      }}
-                      title="Scratch Puzzle Input Notch"
-                      className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 border-2 border-white hover:bg-white hover:text-black cursor-pointer flex items-center justify-center text-[10px] text-white font-black shadow-lg transition"
-                    >
-                      in
-                    </div>
-
-                    {/* Connection Output Port (Puzzle Tab Indicator) */}
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleConnectClick(node.id);
-                      }}
-                      title="Scratch Puzzle Output Tab"
-                      className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 border-2 border-white hover:bg-white hover:text-black cursor-pointer flex items-center justify-center text-[10px] text-white font-black shadow-lg transition"
-                    >
-                      out
-                    </div>
-
                     {/* Scratch Block Header */}
                     <div className="flex items-center justify-between space-x-2">
                       <div className="flex items-center space-x-2 truncate">
