@@ -681,18 +681,28 @@ export default function App() {
     return f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q) || f.category.toLowerCase().includes(q);
   });
 
-  // Helper for origin badge color styling
-  const getNodeColorStyle = (origin: StepOrigin | string, repo?: string) => {
+  // Helper for Scratch 3.0 Block Category Palette & Notch Styling
+  const getNodeColorStyle = (origin: StepOrigin | string, repo?: string, nodeType?: string, category?: string) => {
+    if (nodeType === "condition") {
+      return { scratchClass: "scratch-block-control", border: "border-[#cf8400]", bg: "bg-[#ffab19]", text: "text-white", badge: "bg-[#cf8400] text-white" };
+    }
+    if (nodeType === "for") {
+      return { scratchClass: "scratch-block-events", border: "border-[#cc9900]", bg: "bg-[#ffbf00]", text: "text-amber-950", badge: "bg-[#cc9900] text-white" };
+    }
+    if (nodeType === "parallel") {
+      return { scratchClass: "scratch-block-operators", border: "border-[#389438]", bg: "bg-[#59c059]", text: "text-white", badge: "bg-[#389438] text-white" };
+    }
     if (origin === "user_imported") {
-      return { border: "border-amber-500/80", bg: "bg-amber-950/40", text: "text-amber-400", badge: "bg-amber-950 border-amber-700 text-amber-300" };
+      return { scratchClass: "scratch-block-variables", border: "border-[#db6e00]", bg: "bg-[#ff8c1a]", text: "text-white", badge: "bg-[#db6e00] text-white" };
     }
     if (origin === "described") {
-      return { border: "border-purple-600/80", bg: "bg-purple-950/40", text: "text-purple-300", badge: "bg-purple-950 border-purple-700 text-purple-300" };
+      return { scratchClass: "scratch-block-custom", border: "border-[#d93854]", bg: "bg-[#ff6680]", text: "text-white", badge: "bg-[#d93854] text-white" };
     }
     if (repo === "Plugin" || origin === "plugin") {
-      return { border: "border-emerald-500/80", bg: "bg-emerald-950/40", text: "text-emerald-400", badge: "bg-emerald-950 border-emerald-700 text-emerald-300" };
+      return { scratchClass: "scratch-block-sensing", border: "border-[#2e8ca8]", bg: "bg-[#5cb1d6]", text: "text-white", badge: "bg-[#2e8ca8] text-white" };
     }
-    return { border: "border-indigo-600/80", bg: "bg-indigo-950/40", text: "text-indigo-400", badge: "bg-indigo-950 border-indigo-700 text-indigo-300" };
+    // Default Official Motion Block (Scratch Blue)
+    return { scratchClass: "scratch-block-motion", border: "border-[#3373cc]", bg: "bg-[#4c97ff]", text: "text-white", badge: "bg-[#3373cc] text-white" };
   };
 
   return (
@@ -1036,14 +1046,14 @@ export default function App() {
                                           key={idx}
                                           draggable
                                           onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                                          className="p-2.5 bg-gray-900/90 hover:bg-gray-800 border border-indigo-900/40 hover:border-indigo-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm group"
+                                          className="p-2.5 scratch-block-motion scratch-block-base scratch-notch-top scratch-notch-bottom border border-[#3373cc] rounded-lg cursor-grab active:cursor-grabbing transition shadow-md group"
                                         >
                                           <div className="flex items-center justify-between">
-                                            <span className="text-xs font-semibold text-indigo-200 group-hover:text-indigo-400">
+                                            <span className="text-xs font-extrabold text-white drop-shadow">
                                               {step.name}
                                             </span>
                                           </div>
-                                          <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{step.description}</p>
+                                          <p className="text-[10px] text-white/80 mt-1 line-clamp-1">{step.description}</p>
                                         </div>
                                       ))}
                                     </div>
@@ -1338,7 +1348,12 @@ export default function App() {
                 const isSelected = selectedNode?.id === node.id;
                 const isConnecting = connectingSourceId === node.id;
                 const isExpanded = expandedNodes[node.id] ?? !globalCompactView;
-                const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
+                const isControl = node.data.node_type === "condition" || node.data.node_type === "for";
+                const style = getNodeColorStyle(
+                  node.data.origin,
+                  node.data.namespace?.includes("plugin") ? "Plugin" : undefined,
+                  node.data.node_type
+                );
 
                 return (
                   <div
@@ -1346,50 +1361,50 @@ export default function App() {
                     onMouseDown={(e) => handleNodeMouseDown(e, node)}
                     style={{ left: `${node.position.x}px`, top: `${node.position.y}px` }}
                     className={`absolute ${
-                      isExpanded ? "w-64" : "w-48"
-                    } bg-gray-900/95 backdrop-blur-md border ${
+                      isExpanded ? "w-64" : "w-52"
+                    } ${style.bg} ${style.scratchClass} scratch-block-base scratch-notch-top scratch-notch-bottom border-2 ${
                       isConnecting
-                        ? "border-amber-400 ring-4 ring-amber-400/30"
+                        ? "border-amber-300 ring-4 ring-amber-400/50 scale-105"
                         : isSelected
-                        ? `${style.border} ring-2 ring-indigo-500/40 shadow-indigo-500/20`
+                        ? "border-white ring-4 ring-white/40 shadow-2xl scale-102"
                         : style.border
-                    } rounded-xl p-2.5 shadow-2xl cursor-move transition-all hover:shadow-xl`}
+                    } p-3 cursor-move transition-all z-10`}
                   >
-                    {/* Connection Input Port */}
+                    {/* Connection Input Port (Puzzle Notch Indicator) */}
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
                         if (connectingSourceId) handleConnectClick(node.id);
                       }}
-                      title="Input Connection Port"
-                      className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
+                      title="Scratch Puzzle Input Notch"
+                      className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 border-2 border-white hover:bg-white hover:text-black cursor-pointer flex items-center justify-center text-[10px] text-white font-black shadow-lg transition"
                     >
                       in
                     </div>
 
-                    {/* Connection Output Port */}
+                    {/* Connection Output Port (Puzzle Tab Indicator) */}
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
                         handleConnectClick(node.id);
                       }}
-                      title="Output Connection Port"
-                      className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-800 border-2 border-indigo-500 hover:bg-indigo-500 cursor-pointer flex items-center justify-center text-[9px] text-white font-bold shadow"
+                      title="Scratch Puzzle Output Tab"
+                      className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 border-2 border-white hover:bg-white hover:text-black cursor-pointer flex items-center justify-center text-[10px] text-white font-black shadow-lg transition"
                     >
                       out
                     </div>
 
-                    {/* LabVIEW Compact Header Pill */}
-                    <div className="flex items-center justify-between">
+                    {/* Scratch Block Header */}
+                    <div className="flex items-center justify-between space-x-2">
                       <div className="flex items-center space-x-2 truncate">
-                        <span className={`text-xs font-bold truncate ${style.text}`}>{node.data.label}</span>
+                        <span className="text-sm font-extrabold text-white drop-shadow truncate">{node.data.label}</span>
                       </div>
 
                       <div className="flex items-center space-x-1">
                         <button
                           onClick={(e) => toggleNodeExpand(node.id, e)}
-                          className="text-[10px] px-1.5 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold border border-gray-700"
-                          title={isExpanded ? "Collapse Node" : "Expand LabVIEW View"}
+                          className="text-[10px] px-1.5 py-0.5 bg-black/30 hover:bg-black/50 text-white rounded font-bold border border-white/20"
+                          title={isExpanded ? "Collapse Block" : "Expand Block Details"}
                         >
                           {isExpanded ? "▲" : "▼"}
                         </button>
@@ -1398,33 +1413,47 @@ export default function App() {
                             e.stopPropagation();
                             removeNode(node.id);
                           }}
-                          className="text-xs text-rose-400 hover:text-rose-300 p-0.5 rounded hover:bg-rose-950/50"
+                          className="text-xs text-white hover:text-rose-200 p-0.5 rounded hover:bg-black/30 font-bold"
                         >
                           ✕
                         </button>
                       </div>
                     </div>
 
-                    {/* Expanded LabVIEW Detail Card */}
+                    {/* Scratch C-Shape Mouth Area for IF/FOR Control Blocks */}
+                    {isControl && (
+                      <div className="scratch-c-mouth flex flex-col justify-center items-center">
+                        <span className="text-[10px] font-bold text-white/80 uppercase font-heading tracking-wider">
+                          {node.data.node_type === "condition"
+                            ? `IF (${node.data.condition_expression || "condition"}) THEN`
+                            : `REPEAT (${node.data.for_iterations || 5} TIMES)`}
+                        </span>
+                        <span className="text-[9px] text-white/60 italic mt-0.5">Sub-pipeline steps executed inside</span>
+                      </div>
+                    )}
+
+                    {/* Expanded Detail Card */}
                     {isExpanded && (
-                      <div className="mt-2.5 pt-2 border-t border-gray-800/80 space-y-1.5 text-[11px] animate-fadeIn">
+                      <div className="mt-2 pt-2 border-t border-white/20 space-y-1.5 text-[11px] animate-fadeIn text-white">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500 font-mono text-[10px]">{node.id}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${style.badge}`}>
+                          <span className="font-mono text-[10px] text-white/80">{node.id}</span>
+                          <span className="text-[9px] px-2 py-0.5 rounded border font-bold uppercase bg-black/30 border-white/30 text-white">
                             {node.data.origin}
                           </span>
                         </div>
 
-                        <p className="text-[10px] font-mono text-gray-400 truncate">
+                        <p className="text-[10px] font-mono text-white/90 truncate">
                           {node.data.func_name || node.data.node_type}
                         </p>
 
-                        <div className="space-y-0.5 text-gray-400 pt-1 border-t border-gray-800/50">
-                          <div>
-                            <span className="text-gray-500">In:</span> {node.data.contract.reads.join(", ") || "none"}
+                        <div className="space-y-1 text-white/80 pt-1 border-t border-white/10">
+                          <div className="flex items-center gap-1">
+                            <span className="text-white/60 font-semibold">Inputs:</span>
+                            <span className="scratch-input-slot">{node.data.contract.reads.join(", ") || "none"}</span>
                           </div>
-                          <div>
-                            <span className="text-gray-500">Out:</span> {node.data.contract.writes.join(", ") || "none"}
+                          <div className="flex items-center gap-1">
+                            <span className="text-white/60 font-semibold">Outputs:</span>
+                            <span className="scratch-input-slot">{node.data.contract.writes.join(", ") || "none"}</span>
                           </div>
                         </div>
                       </div>
