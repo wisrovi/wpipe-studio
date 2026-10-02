@@ -5,19 +5,32 @@ import * as Blockly from "blockly";
 export function registerWPipeBlocklyBlocks() {
   if (Blockly.Blocks["wpipe_step"]) return;
 
-  // 1. WPipe Step Block (Motion Blue)
+  // 1. WPipe Step Block (Motion Blue) with Config Warning/Gear Icon
   Blockly.Blocks["wpipe_step"] = {
     init: function () {
+      const configField = new Blockly.FieldImage(
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%23fbbf24'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/></svg>",
+        18,
+        18,
+        "⚠️ Config Required (Click to edit parameters)",
+        () => {
+          if (typeof (window as any).onOpenBlockConfigModal === "function") {
+            (window as any).onOpenBlockConfigModal(this);
+          }
+        }
+      );
+
       this.appendDummyInput()
         .appendField("📦 Step:")
-        .appendField(new Blockly.FieldTextInput("HttpRequest"), "STEP_NAME");
+        .appendField(new Blockly.FieldTextInput("HttpRequest"), "STEP_NAME")
+        .appendField(configField, "CONFIG_ICON");
       this.appendDummyInput()
         .appendField("Namespace:")
         .appendField(new Blockly.FieldTextInput("wpipe_steps.connectivity"), "NAMESPACE");
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(217); // Scratch Motion Blue
-      this.setTooltip("Executes a WPipe state step");
+      this.setTooltip("Executes a WPipe state step. Click ⚠️/⚙️ to configure parameters.");
       this.setHelpUrl("");
     },
   };
