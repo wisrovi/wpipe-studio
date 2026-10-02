@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
-import { BlocklyComponent } from "./components/BlocklyWorkspace";
+import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace } from "./components/BlocklyWorkspace";
 
 interface CatalogStep {
   name: string;
@@ -801,13 +801,6 @@ export default function App() {
       {/* Top Header */}
       <header className="flex items-center justify-between px-6 py-2.5 border-b border-gray-800/80 bg-gray-900/90 backdrop-blur-md shadow-lg z-20">
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setMobileDrawerOpen(true)}
-            className="lg:hidden p-2 text-gray-400 hover:text-white rounded-lg bg-gray-800 border border-gray-700"
-            aria-label="Open Mobile Menu Drawer"
-          >
-            ☰
-          </button>
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center font-black text-white text-lg shadow-md shadow-indigo-600/20">
             W
           </div>
@@ -818,30 +811,14 @@ export default function App() {
                 v2.5.8
               </span>
             </h1>
-            <p className="text-[11px] text-gray-400">Multi-tenant Visual Canvas & Verified Microservice Generator</p>
+            <p className="text-[11px] text-gray-400">Scratch 3.0 Visual Pipeline Builder</p>
           </div>
-        </div>
-
-        {/* Legend Indicator Pills */}
-        <div className="hidden lg:flex items-center space-x-2 text-[11px]">
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-800/80 text-indigo-300 font-medium shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-indigo-500"></span> wpipe-steps (196)
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 font-medium shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> wpipe-plugins (1)
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/60 border border-amber-800/80 text-amber-300 font-medium shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span> User .py
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-950/60 border border-purple-800/80 text-purple-300 font-medium shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span> AI Described
-          </span>
         </div>
 
         <div className="flex items-center space-x-2.5">
           <button
             onClick={generateMermaidDiagram}
-            className="px-4 py-2 text-xs font-bold rounded-lg bg-sky-950/90 hover:bg-sky-900 text-sky-300 border border-sky-600 transition shadow-md shadow-sky-950/50 flex items-center gap-2"
+            className="px-4 py-2 text-xs font-bold rounded-lg bg-sky-950/90 hover:bg-sky-900 text-sky-300 border border-sky-600 transition shadow-md shadow-sky-950/50 flex items-center gap-2 cursor-pointer active:scale-95"
             title="Render Mermaid Flowchart Preview"
           >
             <span>📊 Render Flow Graph</span>
@@ -849,373 +826,171 @@ export default function App() {
         </div>
       </header>
 
-      {/* 4. RESPONSIVE MOBILE DRAWER */}
-      <div
-        className={`drawer-panel bg-gray-900 border-l border-gray-800 shadow-2xl flex flex-col p-4 ${
-          mobileDrawerOpen ? "open" : ""
-        }`}
-      >
-        <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-4">
-          <h3 className="font-bold text-gray-100 text-sm font-heading">Mobile Controls</h3>
-          <button
-            onClick={() => setMobileDrawerOpen(false)}
-            className="text-gray-400 hover:text-white p-1"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          <button
-            onClick={() => {
-              handleDryRun();
-              setMobileDrawerOpen(false);
-            }}
-            className="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg text-xs"
-          >
-            🚀 Dry-Run Verify
-          </button>
-          <button
-            onClick={() => {
-              handleGenerateZip();
-              setMobileDrawerOpen(false);
-            }}
-            className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-lg text-xs"
-          >
-            📦 Generate ZIP
-          </button>
-          <button
-            onClick={() => {
-              setShowFaqModal(true);
-              setMobileDrawerOpen(false);
-            }}
-            className="w-full py-2.5 bg-purple-900 text-purple-200 font-bold rounded-lg text-xs border border-purple-700"
-          >
-            ❓ Help & FAQ Guide
-          </button>
-          <button
-            onClick={() => {
-              clearCanvas();
-              setMobileDrawerOpen(false);
-            }}
-            className="w-full py-2.5 bg-gray-800 text-gray-300 font-bold rounded-lg text-xs border border-gray-700"
-          >
-            🧹 Clear Canvas
-          </button>
-        </div>
-      </div>
-
-      {/* Workspace */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Catalogue */}
-        <aside className="w-96 bg-gray-900/95 border-r border-gray-800/80 flex flex-col z-10 shadow-xl glass-panel">
-          {/* Real-Time Search & Category Filter Bar */}
-          <div className="p-3 bg-gray-950 border-b border-gray-800/80 space-y-2">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="🔍 Search steps, vision, ocr, nmap, waf..."
-                className="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none transition shadow-inner"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase font-heading">Filter Category:</label>
-              <select
-                value={selectedCategoryFilter}
-                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                className="flex-1 bg-gray-900 border border-gray-700/80 rounded-lg py-1 px-2 text-xs text-indigo-300 focus:outline-none cursor-pointer"
-              >
-                <option value="ALL">All Categories ({catalog.length})</option>
-                {availableCategories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* Main Workspace with Left Add-Block Bar */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Left Interactive "Add Block" Palette */}
+        <aside className="w-80 bg-gray-900/95 border-r border-gray-800/80 flex flex-col z-20 shadow-2xl glass-panel">
+          <div className="p-4 bg-gray-950 border-b border-gray-800/80 flex items-center justify-between">
+            <span className="text-sm font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-emerald-300 font-heading">
+              ➕ Add Block
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold">
+              Scratch Palette
+            </span>
           </div>
 
-          {/* Navigation Tabs Header */}
+          {/* Selector Type Tabs */}
           <div className="grid grid-cols-3 border-b border-gray-800/80 bg-gray-950 text-[11px] font-semibold text-gray-400">
             <button
               onClick={() => setActiveTab("official")}
-              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
-                activeTab === "official" || activeTab === "plugins" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
+                activeTab === "official" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              <span>🌐 Catalog</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
-                {searchedOfficial.length + searchedPlugins.length}
-              </span>
+              <span>🌐 External</span>
             </button>
             <button
               onClick={() => setActiveTab("user")}
-              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
                 activeTab === "user" ? "border-amber-500 text-amber-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              <span>📂 Upload .py</span>
-              {userStates.length > 0 && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-mono">
-                  {userStates.length}
-                </span>
-              )}
+              <span>📂 Internal</span>
             </button>
             <button
               onClick={() => setActiveTab("ai")}
-              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
+              className={`py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1 ${
                 activeTab === "ai" ? "border-purple-500 text-purple-400 bg-gray-900" : "border-transparent hover:text-gray-200"
               }`}
             >
-              <span>✨ Generate AI</span>
+              <span>✨ AI Step</span>
             </button>
           </div>
 
-          {/* Sidebar Tab Contents */}
+          {/* Drawer Content */}
           <div className="flex-1 p-3.5 overflow-y-auto space-y-4">
-            {/* 6. SKELETON LOADER STATE */}
-            {catalogLoading ? (
+            {/* 1. EXTERNAL STEP CATALOG (INTELLIGENT SEARCH & CATEGORY ROUTING) */}
+            {activeTab === "official" && (
               <div className="space-y-3">
-                <div className="h-6 w-3/4 skeleton-block"></div>
-                <div className="h-16 skeleton-block"></div>
-                <div className="h-16 skeleton-block"></div>
-                <div className="h-16 skeleton-block"></div>
-              </div>
-            ) : (
-              <>
-                {/* TAB 1: OFFICIAL STEPS TREE */}
-                {activeTab === "official" && (
-                  <div className="space-y-3">
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2 font-heading">
-                      Category & Subcategory Tree ({searchedOfficial.length})
-                    </span>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="🔍 Intelligent search (vision, redis hash, ocr...)"
+                    className="w-full bg-gray-950 border border-gray-700/80 rounded-xl py-2 pl-3 pr-8 text-xs text-gray-100 placeholder-gray-500 focus:outline-none transition"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
 
-                    {/* 8. DESIGNED EMPTY STATE */}
-                    {Object.keys(categoryTree).length === 0 ? (
-                      <div className="p-6 text-center border border-dashed border-gray-800 rounded-xl bg-gray-950/40 my-4">
-                        <svg className="w-10 h-10 mx-auto text-gray-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <p className="text-xs font-bold text-gray-400">No steps matched '{searchQuery}'</p>
-                        <p className="text-[11px] text-gray-500 mt-1">Try searching for keywords like 'http', 'ocr', 'waf', or 'nmap'.</p>
-                      </div>
-                    ) : (
-                      Object.entries(categoryTree).map(([category, subMap]) => {
-                        const isCatOpen = expandedCategories[category] ?? true;
-                        const catCount = Object.values(subMap).reduce((acc, list) => acc + list.length, 0);
+                <div className="space-y-2">
+                  <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block font-heading">
+                    Catalog Steps ({searchedOfficial.length + searchedPlugins.length})
+                  </span>
 
-                        return (
-                          <div key={category} className="border border-gray-800/80 rounded-xl bg-gray-950/60 overflow-hidden shadow-sm">
-                            {/* Category Header Accordion */}
-                            <div
-                              onClick={() =>
-                                setExpandedCategories((prev) => ({ ...prev, [category]: !isCatOpen }))
-                              }
-                              className="flex items-center justify-between p-2.5 bg-gray-900/90 hover:bg-gray-850 cursor-pointer border-b border-gray-800/60 transition"
-                            >
-                              <span className="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-2 font-heading">
-                                <span>{getCategoryIcon(category)}</span>
-                                <span>{category}</span>
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 bg-gray-800 text-gray-400 rounded-full font-mono">
-                                {catCount}
-                              </span>
-                            </div>
-
-                            {/* Subcategories & Steps */}
-                            {isCatOpen && (
-                              <div className="p-2 space-y-3">
-                                {Object.entries(subMap).map(([subcat, stepsList]) => (
-                                  <div key={subcat} className="space-y-1.5 pl-2 border-l-2 border-indigo-950">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                                      └─ {subcat} ({stepsList.length})
-                                    </span>
-                                    <div className="space-y-1.5">
-                                      {stepsList.map((step, idx) => (
-                                        <div
-                                          key={idx}
-                                          draggable
-                                          onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                                          className="p-2.5 scratch-block-motion scratch-block-base scratch-notch-top scratch-notch-bottom border border-[#3373cc] rounded-lg cursor-grab active:cursor-grabbing transition shadow-md group"
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-xs font-extrabold text-white drop-shadow">
-                                              {step.name}
-                                            </span>
-                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-200 border border-blue-400 font-mono font-bold uppercase">
-                                              {step.repo === "Official" ? "Official" : "Community"}
-                                            </span>
-                                          </div>
-                                          <p className="text-[10px] text-white/80 mt-1 line-clamp-1">{step.description}</p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-
-                {/* TAB 2: PLUGINS */}
-                {activeTab === "plugins" && (
-                  <div className="space-y-3">
-                    <span className="text-xs font-semibold text-emerald-400 uppercase block font-heading">
-                      Community Plugins ({searchedPlugins.length})
-                    </span>
-                    <div className="space-y-2">
-                      {searchedPlugins.map((step, idx) => (
-                        <div
-                          key={idx}
-                          draggable
-                          onDragStart={(e) => handleSidebarDragStart(e, { type: "catalog", data: step })}
-                          className="p-3.5 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-800/80 hover:border-emerald-500 rounded-xl cursor-grab active:cursor-grabbing transition shadow-md"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-emerald-300">{step.name}</span>
-                            <span className="text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 font-mono">
-                              v{step.version}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-gray-300 mb-2">{step.description}</p>
-                          <div className="text-[10px] font-mono text-emerald-400/80 break-all bg-emerald-950/60 p-1.5 rounded border border-emerald-900">
-                            {step.how_to_use}
-                          </div>
-                        </div>
-                      ))}
+                  {searchedOfficial.length === 0 && searchedPlugins.length === 0 ? (
+                    <div className="p-4 text-center border border-dashed border-gray-800 rounded-xl bg-gray-950/40">
+                      <p className="text-xs font-bold text-gray-400">No steps matched '{searchQuery}'</p>
                     </div>
-                  </div>
-                )}
-
-                {/* TAB 3: USER UPLOADED */}
-                {activeTab === "user" && (
-                  <div className="space-y-4">
-                    {/* 3. DRAG & DROP ZONE GLOW */}
-                    <div className="bg-amber-950/30 p-3.5 rounded-xl border border-amber-800/80 space-y-2 hover:border-amber-500 transition">
-                      <span className="text-xs font-semibold text-amber-300 block font-heading">📂 Import Custom .py State</span>
-                      <p className="text-[11px] text-gray-400">Upload your own Python state files to drag into the canvas.</p>
-                      <label className="block w-full text-center py-2 px-3 bg-amber-900/60 hover:bg-amber-800 text-amber-200 rounded-lg text-xs font-semibold border border-amber-700 cursor-pointer transition">
-                        Upload .py File
-                        <input type="file" accept=".py" className="hidden" onChange={handleFileUpload} />
-                      </label>
-                    </div>
-
-                    <div className="space-y-2">
-                      <span className="text-xs font-semibold text-gray-400 uppercase">Uploaded Custom States ({userStates.length})</span>
-                      {userStates.length === 0 ? (
-                        <p className="text-xs text-gray-500 italic p-2">No custom states uploaded yet. Upload a .py file above!</p>
-                      ) : (
-                        userStates.map((step, idx) => (
-                          <div
-                            key={idx}
-                            draggable
-                            onDragStart={(e) => handleSidebarDragStart(e, { type: "user", data: step })}
-                            className="p-3 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-800 hover:border-amber-500 rounded-lg cursor-grab active:cursor-grabbing transition shadow-sm"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-amber-300">{step.name}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-800 font-mono">.py</span>
-                            </div>
-                            <p className="text-[11px] text-gray-400 mt-1 truncate">{step.description}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 4: AI NEW STEPS */}
-                {activeTab === "ai" && (
-                  <div className="space-y-4">
-                    <div className="bg-purple-950/30 p-3.5 rounded-xl border border-purple-800 space-y-3">
-                      <span className="text-xs font-bold text-purple-300 block font-heading">✨ Describe New AI Step</span>
-                      <p className="text-[11px] text-gray-400">Prompt the LLM agent to generate a custom step and its DTO.</p>
-                      <button
-                        onClick={() => setShowAiModal(true)}
-                        className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow transition"
+                  ) : (
+                    [...searchedOfficial, ...searchedPlugins].map((step, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          addStepBlockToWorkspace(step.name, step.namespace, "catalog");
+                          setStatusMessage(`Added block '${step.name}' to Scratch canvas`);
+                        }}
+                        className="p-3 bg-blue-950/30 hover:bg-blue-900/50 border border-blue-600/80 hover:border-blue-400 rounded-xl cursor-pointer transition shadow-md group"
                       >
-                        + Create AI Step Prompt
-                      </button>
-                    </div>
-                  </div>
-                )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                            <span>📦</span>
+                            <span>{step.name}</span>
+                          </span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${step.repo === "Official" ? "bg-blue-950 text-blue-300 border border-blue-500" : "bg-emerald-950 text-emerald-300 border border-emerald-500"}`}>
+                            {step.repo === "Official" ? "Official" : "Community"}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-300 mt-1 line-clamp-2">{step.description}</p>
+                        <div className="mt-2 text-[9px] font-mono text-blue-300/80 flex items-center justify-between">
+                          <span>Cat: {step.category}</span>
+                          <span className="text-emerald-400 font-bold group-hover:translate-x-0.5 transition">+ Click to Add</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
-                {/* TAB 5: ACTIVE PIPELINE SUMMARY */}
-                {activeTab === "inuse" && (
-                  <div className="space-y-3">
-                    <span className="text-xs font-semibold text-sky-400 uppercase block font-heading">Active Nodes ({nodes.length})</span>
-                    <div className="space-y-2">
-                      {nodes.map((node) => {
-                        const style = getNodeColorStyle(node.data.origin, node.data.namespace?.includes("plugin") ? "Plugin" : undefined);
-                        return (
-                          <div
-                            key={node.id}
-                            onClick={() => setSelectedNode(node)}
-                            className={`p-3 bg-gray-800/90 border ${style.border} rounded-lg cursor-pointer transition hover:bg-gray-800 shadow-sm`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className={`text-xs font-bold ${style.text}`}>{node.data.label}</span>
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${style.badge}`}>{node.id}</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-1 flex justify-between">
-                              <span>Origin: {node.data.origin}</span>
-                              <span>Type: {node.data.node_type}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
+            {/* 2. INTERNAL STEP (.PY LOADED OR UPLOAD NEW) */}
+            {activeTab === "user" && (
+              <div className="space-y-4">
+                <div className="bg-amber-950/30 p-3.5 rounded-xl border border-amber-800/80 space-y-2">
+                  <span className="text-xs font-semibold text-amber-300 block font-heading">📂 Import Custom .py State</span>
+                  <p className="text-[11px] text-gray-400">Upload your custom Python state file.</p>
+                  <label className="block w-full text-center py-2 px-3 bg-amber-900/60 hover:bg-amber-800 text-amber-200 rounded-lg text-xs font-semibold border border-amber-700 cursor-pointer transition">
+                    Upload .py File
+                    <input type="file" accept=".py" className="hidden" onChange={handleFileUpload} />
+                  </label>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-400 uppercase">Available Internal States ({userStates.length})</span>
+                  {userStates.length === 0 ? (
+                    <p className="text-xs text-gray-500 italic p-2">No custom states loaded yet. Upload a .py file above!</p>
+                  ) : (
+                    userStates.map((step, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          addStepBlockToWorkspace(step.name, step.namespace || "user_custom", "user_imported");
+                          setStatusMessage(`Added internal state '${step.name}' to Scratch canvas`);
+                        }}
+                        className="p-3 bg-amber-950/30 hover:bg-amber-900/50 border border-amber-600/80 hover:border-amber-400 rounded-xl cursor-pointer transition shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-extrabold text-amber-200">{step.name}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-800 font-mono">.py</span>
+                        </div>
+                        <p className="text-[10px] text-gray-300 mt-1 line-clamp-1">{step.description}</p>
+                        <span className="mt-1 block text-[9px] text-amber-400 font-bold text-right">+ Click to Add</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 3. AI DESCRIBED STEP */}
+            {activeTab === "ai" && (
+              <div className="space-y-4">
+                <div className="bg-purple-950/30 p-3.5 rounded-xl border border-purple-800 space-y-3">
+                  <span className="text-xs font-bold text-purple-300 block font-heading">✨ Prompt AI Step</span>
+                  <p className="text-[11px] text-gray-400">Define Title, Description, and Details for the AI agent.</p>
+                  <button
+                    onClick={() => setShowAiModal(true)}
+                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow transition"
+                  >
+                    + Open AI Prompt Dialog
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </aside>
 
-        {/* Central Canvas Workspace: Native Google Blockly Scratch Canvas Engine */}
-        <main
-          ref={canvasRef}
-          className="flex-1 bg-[#05070c] p-4 relative overflow-hidden flex flex-col justify-between transition-all"
-        >
-          {/* Canvas Floating Top Toolbar */}
-          <div className="absolute top-6 left-8 z-30 flex items-center space-x-2 bg-gray-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-800/80 shadow-xl pointer-events-auto">
-            <span className="text-xs font-semibold text-gray-400">Scratch Engine:</span>
-            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-              <span>⚡ Google Blockly Native Workspace</span>
-            </span>
-
-            <div className="h-4 w-px bg-gray-800 mx-2"></div>
-
-            <button
-              onClick={() => {
-                const ws = (window as any).blocklyWorkspace;
-                if (ws) ws.clear();
-                setStatusMessage("Blockly Workspace cleared");
-              }}
-              className="px-2.5 py-1 bg-gray-800 hover:bg-rose-950 text-gray-300 hover:text-rose-300 rounded text-xs border border-gray-700 transition cursor-pointer active:scale-95"
-              title="Clear all Scratch blocks from workspace"
-            >
-              🧹 Clear Workspace
-            </button>
-          </div>
-
+        {/* Central Workspace: Google Blockly Native Scratch Canvas */}
+        <main ref={canvasRef} className="flex-1 bg-[#05070c] p-4 relative overflow-hidden flex flex-col justify-between">
           {/* Blockly Native Canvas */}
-          <div className="w-full h-full pt-10">
+          <div className="w-full h-full">
             <BlocklyComponent
               onWorkspaceChange={(ws) => {
                 (window as any).blocklyWorkspace = ws;
@@ -1226,131 +1001,9 @@ export default function App() {
           {/* Bottom Status Bar */}
           <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg mt-2">
             <span>Status: <strong className="text-gray-200">{statusMessage}</strong></span>
-            <span>Engine: <strong className="text-indigo-400 font-heading">Google Blockly (Scratch 3.0 SVG)</strong></span>
+            <span>Engine: <strong className="text-indigo-400 font-heading">Google Blockly (Scratch 3.0 Native Canvas)</strong></span>
           </div>
         </main>
-
-        {/* Right Inspector Panel */}
-        <aside className="w-88 bg-gray-900/95 border-l border-gray-800/80 flex flex-col z-10 glass-panel">
-          <div className="grid grid-cols-2 border-b border-gray-800/80 bg-gray-950 text-xs font-semibold text-gray-400">
-            <button
-              onClick={() => setInspectorTab("properties")}
-              className={`py-3 text-center border-b-2 transition ${
-                inspectorTab === "properties" ? "border-indigo-500 text-indigo-400 bg-gray-900" : "border-transparent hover:text-gray-200"
-              }`}
-            >
-              ⚙️ Properties
-            </button>
-            <button
-              onClick={() => setInspectorTab("code_notes")}
-              className={`py-3 text-center border-b-2 transition ${
-                inspectorTab === "code_notes" ? "border-purple-500 text-purple-400 bg-gray-900" : "border-transparent hover:text-gray-200"
-              }`}
-            >
-              💻 Code & Notes
-            </button>
-          </div>
-
-          <div className="flex-1 p-5 overflow-y-auto">
-            {selectedNode ? (
-              inspectorTab === "properties" ? (
-                /* PROPERTIES TAB */
-                <div className="space-y-4 text-xs">
-                  <div>
-                    <label className="block text-gray-400 mb-1">Node Label</label>
-                    <input
-                      type="text"
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-medium"
-                      value={selectedNode.data.label}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setNodes((prev) =>
-                          prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label: val } } : n))
-                        );
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, label: val } } : null));
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 mb-1">Namespace</label>
-                    <p className="font-mono text-gray-300 bg-gray-950 p-2 rounded border border-gray-800 break-all">
-                      {selectedNode.data.namespace || "N/A"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 mb-1">Context Writes (Output Variables)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 font-mono text-emerald-400"
-                      value={selectedNode.data.contract.writes.join(", ")}
-                      onChange={(e) => {
-                        const writes = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
-                        setNodes((prev) =>
-                          prev.map((n) =>
-                            n.id === selectedNode.id
-                              ? { ...n, data: { ...n.data, contract: { ...n.data.contract, writes } } }
-                              : n
-                          )
-                        );
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 mb-1">Merge Policy</label>
-                    <select
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-200"
-                      value={selectedNode.data.merge_policy}
-                      onChange={(e) => {
-                        const val = e.target.value as any;
-                        setNodes((prev) =>
-                          prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, merge_policy: val } } : n))
-                        );
-                      }}
-                    >
-                      <option value="accumulate">accumulate (default)</option>
-                      <option value="last_wins">last_wins</option>
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                /* CODE & NOTES TAB */
-                <div className="space-y-4 text-xs">
-                  <div>
-                    <label className="block text-purple-300 font-bold mb-1 font-heading">📝 Developer Notes / Agent Instructions</label>
-                    <textarea
-                      rows={4}
-                      placeholder="Add developer notes or agent refinement instructions here..."
-                      className="w-full bg-gray-950 border border-purple-800/80 rounded-lg p-2.5 text-gray-200 text-xs resize-none focus:outline-none"
-                      value={selectedNode.data.notes || ""}
-                      onChange={(e) => {
-                        const notes = e.target.value;
-                        setNodes((prev) =>
-                          prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, notes } } : n))
-                        );
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, notes } } : null));
-                      }}
-                    ></textarea>
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      These notes will be passed directly to the LLM agent when generating/refining Python code.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 font-semibold mb-1">💻 Python Code Preview</label>
-                    <pre className="bg-gray-950 p-3 rounded-lg border border-gray-800 font-mono text-[11px] text-indigo-300 overflow-x-auto whitespace-pre-wrap">
-                      {selectedNode.data.code_snippet || `# Step: ${selectedNode.data.label}\nfrom wpipe import step\n\n# Code template`}
-                    </pre>
-                  </div>
-                </div>
-              )
-            ) : (
-              <p className="text-xs text-gray-500 italic">Select a node on the canvas to inspect its properties or code.</p>
-            )}
-          </div>
-        </aside>
       </div>
 
       {/* 7. INTERACTIVE FAQ MODAL WITH ACCORDIONS */}
