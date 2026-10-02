@@ -43,6 +43,31 @@ export default function App() {
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [pipelineJsonText, setPipelineJsonText] = useState<string>("");
 
+  // Block Parameter Config Modal State
+  const [configModalBlock, setConfigModalBlock] = useState<any | null>(null);
+  const [blockParams, setBlockParams] = useState<{ host: string; port: string; timeout: string; extra_notes: string }>({
+    host: "127.0.0.1",
+    port: "6379",
+    timeout: "30",
+    extra_notes: "",
+  });
+
+  // Register window event handler for Blockly block config click
+  useEffect(() => {
+    (window as any).onOpenBlockConfigModal = (block: any) => {
+      setConfigModalBlock(block);
+      const stepName = block.getFieldValue("STEP_NAME") || "Step";
+      if (stepName.toLowerCase().includes("redis")) {
+        setBlockParams({ host: "127.0.0.1", port: "6379", timeout: "30", extra_notes: "DB: 0" });
+      } else {
+        setBlockParams({ host: "api.example.com", port: "443", timeout: "30", extra_notes: "" });
+      }
+    };
+    return () => {
+      delete (window as any).onOpenBlockConfigModal;
+    };
+  }, []);
+
   // Loading states
   const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
   const [dryRunLoading, setDryRunLoading] = useState<boolean>(false);
@@ -1251,6 +1276,108 @@ export default function App() {
               >
                 Continue Editing
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block Parameters Configuration Modal */}
+      {configModalBlock && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-amber-500/80 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl glass-panel">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-100 font-heading flex items-center gap-2">
+                  <span>⚙️ Configure Step Parameters</span>
+                </h3>
+                <p className="text-xs text-amber-400/90 font-mono">
+                  {configModalBlock.getFieldValue("STEP_NAME")} ({configModalBlock.getFieldValue("NAMESPACE")})
+                </p>
+              </div>
+              <button onClick={() => setConfigModalBlock(null)} className="text-gray-400 hover:text-white font-bold p-1 text-lg">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-semibold mb-1">Host / Endpoint</label>
+                <input
+                  type="text"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono"
+                  value={blockParams.host}
+                  onChange={(e) => setBlockParams({ ...blockParams, host: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-semibold mb-1">Port</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono"
+                    value={blockParams.port}
+                    onChange={(e) => setBlockParams({ ...blockParams, port: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-semibold mb-1">Timeout (s)</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100 font-mono"
+                    value={blockParams.timeout}
+                    onChange={(e) => setBlockParams({ ...blockParams, timeout: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-semibold mb-1">Extra Notes / Parameters</label>
+                <input
+                  type="text"
+                  placeholder="e.g. db=0, auth_token=..."
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-gray-100"
+                  value={blockParams.extra_notes}
+                  onChange={(e) => setBlockParams({ ...blockParams, extra_notes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-gray-800">
+              <button
+                onClick={() => {
+                  setBlockParams({ host: "localhost", port: "6379", timeout: "10", extra_notes: "Auto-filled by AI Agent" });
+                  setStatusMessage("AI Agent prefilled default parameters");
+                }}
+                className="px-3 py-1.5 bg-purple-950 hover:bg-purple-900 text-purple-300 rounded-lg text-xs font-semibold border border-purple-700 transition"
+              >
+                🤖 Auto-Fill AI
+              </button>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setConfigModalBlock(null)}
+                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Update block field or icon to green configured state
+                    if (configModalBlock && configModalBlock.getField("CONFIG_ICON")) {
+                      configModalBlock.setFieldValue(
+                        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2310b981'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>",
+                        "CONFIG_ICON"
+                      );
+                    }
+                    setConfigModalBlock(null);
+                    setStatusMessage(`Saved parameters for ${configModalBlock.getFieldValue("STEP_NAME")}`);
+                  }}
+                  className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow transition"
+                >
+                  Save Configuration
+                </button>
+              </div>
             </div>
           </div>
         </div>
