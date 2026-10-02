@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
+import { BlocklyComponent } from "./components/BlocklyWorkspace";
 
 interface CatalogStep {
   name: string;
@@ -11,6 +12,8 @@ interface CatalogStep {
   description: string;
   repo: string; // "Official" or "Plugin"
   code_snippet?: string;
+  version?: string;
+  how_to_use?: string;
 }
 
 interface FaqItem {
@@ -1184,376 +1187,46 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Central Canvas Workspace */}
+        {/* Central Canvas Workspace: Native Google Blockly Scratch Canvas Engine */}
         <main
           ref={canvasRef}
-          onDrop={handleCanvasDrop}
-          onDragOver={handleCanvasDragOver}
-          onDragLeave={handleCanvasDragLeave}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onContextMenu={handleCanvasContextMenu}
-          className={`flex-1 bg-[#05070c] p-6 relative overflow-hidden flex flex-col justify-between transition-all ${
-            isDragOverCanvas ? "dragzone-active" : ""
-          }`}
-          style={{
-            backgroundImage: "radial-gradient(#1f2937 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
+          className="flex-1 bg-[#05070c] p-4 relative overflow-hidden flex flex-col justify-between transition-all"
         >
           {/* Canvas Floating Top Toolbar */}
-          <div className="absolute top-4 left-4 z-30 flex items-center space-x-2 bg-gray-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-800/80 shadow-xl pointer-events-auto">
-            <span className="text-xs font-semibold text-gray-400">DAG Graph:</span>
+          <div className="absolute top-6 left-8 z-30 flex items-center space-x-2 bg-gray-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-800/80 shadow-xl pointer-events-auto">
+            <span className="text-xs font-semibold text-gray-400">Scratch Engine:</span>
             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-              <span>✓ Acyclic</span>
-              <span className="text-gray-500">({nodes.length} Nodes, {edges.length} Connections)</span>
+              <span>⚡ Google Blockly Native Workspace</span>
             </span>
 
             <div className="h-4 w-px bg-gray-800 mx-2"></div>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddFromContextMenu("condition");
-              }}
-              className="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-300 rounded text-xs border border-amber-800 font-semibold transition cursor-pointer active:scale-95"
-            >
-              + IF
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddFromContextMenu("for");
-              }}
-              className="px-2.5 py-1 bg-sky-950/80 hover:bg-sky-900 text-sky-300 rounded text-xs border border-sky-800 font-semibold transition cursor-pointer active:scale-95"
-            >
-              + FOR
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddFromContextMenu("parallel");
-              }}
-              className="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 text-purple-300 rounded text-xs border border-purple-800 font-semibold transition cursor-pointer active:scale-95"
-            >
-              + PAR
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                clearCanvas();
+              onClick={() => {
+                const ws = (window as any).blocklyWorkspace;
+                if (ws) ws.clear();
+                setStatusMessage("Blockly Workspace cleared");
               }}
               className="px-2.5 py-1 bg-gray-800 hover:bg-rose-950 text-gray-300 hover:text-rose-300 rounded text-xs border border-gray-700 transition cursor-pointer active:scale-95"
-              title="Clear all nodes from canvas"
+              title="Clear all Scratch blocks from workspace"
             >
-              🧹 Clear
+              🧹 Clear Workspace
             </button>
-
-            {connectingSourceId && (
-              <span className="ml-2 text-xs px-2 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-700 animate-pulse">
-                Connecting from {connectingSourceId}... Click target node port!
-              </span>
-            )}
           </div>
 
-          {/* Canvas Nodes Layer: Scratch Vertical Puzzle Blocks */}
-          <div className="relative w-full h-full z-10">
-            {nodes.length === 0 ? (
-              /* 8. CANVAS EMPTY STATE */
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="p-8 glass-card rounded-2xl border border-gray-800 text-center max-w-sm pointer-events-auto shadow-2xl">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-gray-800 flex items-center justify-center text-2xl mb-3 text-indigo-400">
-                    ⚡
-                  </div>
-                  <h3 className="font-bold text-gray-200 text-sm font-heading mb-1">Canvas is empty</h3>
-                  <p className="text-xs text-gray-400 mb-4">Drag steps from the sidebar catalog or right-click anywhere to add control blocks.</p>
-                </div>
-              </div>
-            ) : (
-              nodes.map((node) => {
-                const isSelected = selectedNode?.id === node.id;
-                const isConnecting = connectingSourceId === node.id;
-                const isExpanded = expandedNodes[node.id] ?? !globalCompactView;
-                const isControl = node.data.node_type === "condition" || node.data.node_type === "for";
-                const style = getNodeColorStyle(
-                  node.data.origin,
-                  node.data.namespace?.includes("plugin") ? "Plugin" : undefined,
-                  node.data.node_type
-                );
-
-                return (
-                  <div
-                    key={node.id}
-                    onMouseDown={(e) => handleNodeMouseDown(e, node)}
-                    style={{ left: `${node.position.x}px`, top: `${node.position.y}px` }}
-                    className={`absolute ${
-                      isExpanded ? "w-64" : "w-52"
-                    } ${style.bg} ${style.scratchClass} scratch-block-base scratch-notch-top scratch-notch-bottom border-2 ${
-                      isConnecting
-                        ? "border-amber-300 ring-4 ring-amber-400/50 scale-105"
-                        : isSelected
-                        ? "border-white ring-4 ring-white/40 shadow-2xl scale-102"
-                        : style.border
-                    } p-3 cursor-move transition-all z-10`}
-                  >
-                    {/* Scratch Block Header */}
-                    <div className="flex items-center justify-between space-x-2">
-                      <div className="flex items-center space-x-2 truncate">
-                        <span className="text-sm font-extrabold text-white drop-shadow truncate">{node.data.label}</span>
-                      </div>
-
-                      <div className="flex items-center space-x-1">
-                        <button
-                          onClick={(e) => toggleNodeExpand(node.id, e)}
-                          className="text-[10px] px-1.5 py-0.5 bg-black/30 hover:bg-black/50 text-white rounded font-bold border border-white/20"
-                          title={isExpanded ? "Collapse Block" : "Expand Block Details"}
-                        >
-                          {isExpanded ? "▲" : "▼"}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeNode(node.id);
-                          }}
-                          className="text-xs text-white hover:text-rose-200 p-0.5 rounded hover:bg-black/30 font-bold"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Scratch C-Shape Mouth Area for IF/ELSE, FOR, and PARALLEL Control Blocks */}
-                    {isControl || node.data.node_type === "parallel" ? (
-                      <div className="space-y-2 mt-2">
-                        {node.data.node_type === "condition" && (
-                          <>
-                            {/* IF (True Branch) Slot */}
-                            <div className="scratch-c-mouth bg-black/40 border border-white/30 rounded-lg p-2 flex flex-col gap-1">
-                              <span className="text-[10px] font-bold text-amber-200 uppercase font-heading tracking-wider flex items-center justify-between">
-                                <span>IF ({node.data.condition_expression || "condition"}) THEN</span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const val = !node.data.has_else;
-                                    setNodes((prev) =>
-                                      prev.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, has_else: val } } : n))
-                                    );
-                                  }}
-                                  className="text-[9px] px-1.5 py-0.5 rounded bg-amber-950 hover:bg-amber-900 border border-amber-700 text-amber-300 font-normal"
-                                >
-                                  {node.data.has_else ? "Remove ELSE" : "+ Add ELSE"}
-                                </button>
-                              </span>
-
-                              {/* Nested Children in IF Branch */}
-                              {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "if_body").length === 0 ? (
-                                <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to execute on TRUE</span>
-                              ) : (
-                                <div className="space-y-1.5 pl-2 border-l-2 border-amber-400">
-                                  {nodes
-                                    .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "if_body")
-                                    .map((child) => (
-                                      <div key={child.id} className="p-1.5 bg-amber-900/60 border border-amber-500/80 rounded text-[10px] font-bold text-amber-100 flex items-center justify-between">
-                                        <span>{child.data.label}</span>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setNodes((prev) =>
-                                              prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
-                                            );
-                                          }}
-                                          className="text-white hover:text-rose-300 text-[10px]"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* ELSE (False Branch) Slot if enabled */}
-                            {node.data.has_else && (
-                              <div className="scratch-c-mouth bg-black/40 border border-purple-500/40 rounded-lg p-2 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-purple-200 uppercase font-heading tracking-wider">
-                                  ELSE BRANCH
-                                </span>
-
-                                {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "else_body").length === 0 ? (
-                                  <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to execute on FALSE</span>
-                                ) : (
-                                  <div className="space-y-1.5 pl-2 border-l-2 border-purple-400">
-                                    {nodes
-                                      .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "else_body")
-                                      .map((child) => (
-                                        <div key={child.id} className="p-1.5 bg-purple-900/60 border border-purple-500/80 rounded text-[10px] font-bold text-purple-100 flex items-center justify-between">
-                                          <span>{child.data.label}</span>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setNodes((prev) =>
-                                                prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
-                                              );
-                                            }}
-                                            className="text-white hover:text-rose-300 text-[10px]"
-                                          >
-                                            ✕
-                                          </button>
-                                        </div>
-                                      ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        {node.data.node_type === "for" && (
-                          <div className="scratch-c-mouth bg-black/40 border border-sky-400/40 rounded-lg p-2 flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-sky-200 uppercase font-heading tracking-wider">
-                              REPEAT ({node.data.for_iterations || 5} TIMES)
-                            </span>
-
-                            {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "loop_body").length === 0 ? (
-                              <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to loop</span>
-                            ) : (
-                              <div className="space-y-1.5 pl-2 border-l-2 border-sky-400">
-                                {nodes
-                                  .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "loop_body")
-                                  .map((child) => (
-                                    <div key={child.id} className="p-1.5 bg-sky-900/60 border border-sky-500/80 rounded text-[10px] font-bold text-sky-100 flex items-center justify-between">
-                                      <span>{child.data.label}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setNodes((prev) =>
-                                            prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
-                                          );
-                                        }}
-                                        className="text-white hover:text-rose-300 text-[10px]"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {node.data.node_type === "parallel" && (
-                          <div className="scratch-c-mouth bg-black/40 border border-emerald-400/40 rounded-lg p-2 flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-emerald-200 uppercase font-heading tracking-wider">
-                              RUN IN PARALLEL
-                            </span>
-
-                            {nodes.filter((n) => n.data.parent_id === node.id && n.data.slot_type === "parallel_body").length === 0 ? (
-                              <span className="text-[9px] text-white/50 italic py-1 text-center">Drag steps here to run concurrently</span>
-                            ) : (
-                              <div className="space-y-1.5 pl-2 border-l-2 border-emerald-400">
-                                {nodes
-                                  .filter((n) => n.data.parent_id === node.id && n.data.slot_type === "parallel_body")
-                                  .map((child) => (
-                                    <div key={child.id} className="p-1.5 bg-emerald-900/60 border border-emerald-500/80 rounded text-[10px] font-bold text-emerald-100 flex items-center justify-between">
-                                      <span>{child.data.label}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setNodes((prev) =>
-                                            prev.map((n) => (n.id === child.id ? { ...n, data: { ...n.data, parent_id: undefined, slot_type: undefined } } : n))
-                                          );
-                                        }}
-                                        className="text-white hover:text-rose-300 text-[10px]"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {/* Expanded Detail Card */}
-                    {isExpanded && (
-                      <div className="mt-2 pt-2 border-t border-white/20 space-y-1.5 text-[11px] animate-fadeIn text-white">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-[10px] text-white/80">{node.id}</span>
-                          <span className="text-[9px] px-2 py-0.5 rounded border font-bold uppercase bg-black/30 border-white/30 text-white">
-                            {node.data.origin}
-                          </span>
-                        </div>
-
-                        <p className="text-[10px] font-mono text-white/90 truncate">
-                          {node.data.func_name || node.data.node_type}
-                        </p>
-
-                        <div className="space-y-1 text-white/80 pt-1 border-t border-white/10">
-                          <div className="flex items-center gap-1">
-                            <span className="text-white/60 font-semibold">Inputs:</span>
-                            <span className="scratch-input-slot">{node.data.contract.reads.join(", ") || "none"}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-white/60 font-semibold">Outputs:</span>
-                            <span className="scratch-input-slot">{node.data.contract.writes.join(", ") || "none"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
+          {/* Blockly Native Canvas */}
+          <div className="w-full h-full pt-10">
+            <BlocklyComponent
+              onWorkspaceChange={(ws) => {
+                (window as any).blocklyWorkspace = ws;
+              }}
+            />
           </div>
-
-          {/* Canvas Context Menu */}
-          {contextMenuPos && (
-            <div
-              style={{ left: `${contextMenuPos.x}px`, top: `${contextMenuPos.y}px` }}
-              className="absolute z-50 bg-gray-900 border border-gray-700 rounded-xl p-2 shadow-2xl space-y-1 text-xs w-48 animate-scaleIn"
-            >
-              <div className="px-2 py-1 text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 font-heading">
-                Add Control Block
-              </div>
-              <button
-                onClick={() => handleAddFromContextMenu("condition")}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-amber-950/50 text-amber-300 font-semibold"
-              >
-                🔀 Add IF Condition
-              </button>
-              <button
-                onClick={() => handleAddFromContextMenu("for")}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-sky-950/50 text-sky-300 font-semibold"
-              >
-                🔁 Add FOR Loop
-              </button>
-              <button
-                onClick={() => handleAddFromContextMenu("parallel")}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-purple-950/50 text-purple-300 font-semibold"
-              >
-                ⚡ Add PARALLEL Branch
-              </button>
-              <button
-                onClick={() => handleAddFromContextMenu("ai")}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-purple-900/50 text-purple-200 font-semibold border-t border-gray-800 pt-1.5"
-              >
-                ✨ Create AI Step...
-              </button>
-              <button
-                onClick={() => setContextMenuPos(null)}
-                className="w-full text-center px-2 py-1 rounded bg-gray-800 text-gray-400 hover:text-white mt-1"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
 
           {/* Bottom Status Bar */}
-          <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg">
+          <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg mt-2">
             <span>Status: <strong className="text-gray-200">{statusMessage}</strong></span>
-            <span>Target Engine: <strong className="text-indigo-400 font-heading">WPipe v2.5.8</strong></span>
+            <span>Engine: <strong className="text-indigo-400 font-heading">Google Blockly (Scratch 3.0 SVG)</strong></span>
           </div>
         </main>
 
