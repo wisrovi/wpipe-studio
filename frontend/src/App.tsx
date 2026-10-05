@@ -1248,8 +1248,9 @@ export default function App() {
       {/* Rendered Pipeline Flow Graph Modal */}
       {showMermaidModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl glass-panel">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-4xl w-full p-6 space-y-4 shadow-2xl glass-panel max-h-[85vh] flex flex-col overflow-hidden">
+            {/* Pinned Header */}
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-300 font-heading">
                   📊 Rendered Pipeline Flowchart
@@ -1261,12 +1262,13 @@ export default function App() {
               </button>
             </div>
 
-            {/* Rendered SVG Container */}
-            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 flex items-center justify-center overflow-auto max-h-[450px] min-h-[250px]">
-              <div ref={mermaidRenderRef} className="w-full flex justify-center text-center"></div>
+            {/* Scrollable Viewport SVG Container */}
+            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 flex-1 overflow-auto min-h-[200px]">
+              <div ref={mermaidRenderRef} className="w-full h-full flex justify-center text-center items-center"></div>
             </div>
 
-            <div className="flex justify-between items-center pt-2">
+            {/* Pinned Footer Toolbar */}
+            <div className="flex justify-between items-center pt-2 flex-shrink-0 border-t border-gray-800/80">
               <div className="flex space-x-2">
                 <button
                   onClick={() => {
