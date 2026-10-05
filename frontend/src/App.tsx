@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
-import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace, getMermaidFromBlocklyWorkspace } from "./components/BlocklyWorkspace";
+import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace, getMermaidFromBlocklyWorkspace, getWorkPlanFromBlocklyWorkspace } from "./components/BlocklyWorkspace";
 import mermaid from "mermaid";
 
 interface ParamSpec {
@@ -1279,6 +1279,22 @@ export default function App() {
                   title="Copy underlying Mermaid syntax code"
                 >
                   📋 Copy Mermaid Code
+                </button>
+                <button
+                  onClick={() => {
+                    const mdPlan = getWorkPlanFromBlocklyWorkspace(catalog);
+                    const mdBlob = new Blob([mdPlan], { type: "text/markdown;charset=utf-8" });
+                    const mdUrl = URL.createObjectURL(mdBlob);
+                    const downloadLink = document.createElement("a");
+                    downloadLink.href = mdUrl;
+                    downloadLink.download = "WPipe_Pipeline_Work_Plan.md";
+                    downloadLink.click();
+                    setStatusMessage("Exported Work Plan (.md) file!");
+                  }}
+                  className="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-700 transition active:scale-95 flex items-center gap-1"
+                  title="Export complete execution work plan in Markdown format"
+                >
+                  📝 Export Work Plan (.md)
                 </button>
                 <button
                   onClick={() => {
