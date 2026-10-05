@@ -230,6 +230,131 @@ export function getMermaidFromBlocklyWorkspace(): string {
   return lines.join("\n");
 }
 
+export function getWorkPlanFromBlocklyWorkspace(catalogSteps: any[] = []): string {
+  if (!activeWorkspaceRef) {
+    return "# 📋 WPipe Studio Execution Work Plan\n\nNo blocks found in workspace.";
+  }
+
+  const allBlocks = activeWorkspaceRef.getAllBlocks(false);
+  if (!allBlocks || allBlocks.length === 0) {
+    return "# 📋 WPipe Studio Execution Work Plan\n\nNo blocks configured in workspace.";
+  }
+
+  const stepBlocks = allBlocks.filter((b) => b.type === "wpipe_step");
+  const controlBlocks = allBlocks.filter((b) => b.type.startsWith("wpipe_") && b.type !== "wpipe_step");
+
+  const catalogUsed: { name: string; namespace: string; repo: string; how_to_use: string }[] = [];
+  const userUsed: { name: string; namespace: string }[] = [];
+  const aiToCreate: { name: string; namespace: string }[] = [];
+
+  stepBlocks.forEach((b) => {
+    const name = b.getFieldValue("STEP_NAME") || "UnnamedStep";
+    const ns = b.getFieldValue("NAMESPACE") || "wpipe_steps";
+
+    // Match with catalog
+    const matched = catalogSteps.find(
+      (cs) => cs.name.toLowerCase() === name.toLowerCase() || cs.func_name.toLowerCase() === name.toLowerCase() || cs.namespace.toLowerCase() === ns.toLowerCase()
+    );
+
+    if (matched) {
+      catalogUsed.push({
+        name: matched.name || name,
+        namespace: matched.namespace || ns,
+        repo: matched.repo || "Official",
+        how_to_use: matched.how_to_use || `from ${matched.namespace || ns} import ${matched.func_name || name}`,
+      });
+    } else if (ns.includes("user") || ns.includes("custom")) {
+      userUsed.push({ name, namespace: ns });
+    } else if (ns.includes("ai") || ns.includes("described")) {
+      aiToCreate.push({ name, namespace: ns });
+    } else {
+      catalogUsed.push({
+        name,
+        namespace: ns,
+        repo: "Official",
+        how_to_use: `from ${ns} import ${name}`,
+      });
+    }
+  });
+
+  let md = `# 📋 WPipe Studio Execution Work Plan & Architecture Specification\n\n`;
+  md += `> **Generated on:** ${new Date().toISOString().split("T")[0]}\n`;
+  md += `> **Pipeline Status:** Verified for Execution\n\n`;
+
+  md += `---
+
+## 1. 📦 Step Dependencies & Import Strategy
+
+### 🌐 A. Official Catalog Steps (${catalogUsed.length})
+`;
+
+  if (catalogUsed.length === 0) {
+    md += `*No official catalog steps required in this pipeline.*\n\n`;
+  } else {
+    catalogUsed.forEach((item, idx) => {
+      md += `#### ${idx + 1}. \`${item.name}\` (${item.repo})\n`;
+      md += `- **Namespace:** \`${item.namespace}\`\n`;
+      md += `- **Import Usage:**\n\`\`\`python\n${item.how_to_use}\n\`\`\`\n\n`;
+    });
+  }
+
+  md += `### 📂 B. User-Imported Custom (.py) States (${userUsed.length})
+`;
+  if (userUsed.length === 0) {
+    md += `*No pre-existing user .py states required.*\n\n`;
+  } else {
+    userUsed.forEach((item, idx) => {
+      md += `#### ${idx + 1}. \`${item.name}\`\n`;
+      md += `- **File Origin:** \`${item.namespace}\`\n`;
+      md += `- **Action:** Load state decorated with \`@step\` from local user workspace.\n\n`;
+    });
+  }
+
+  md += `### ✨ C. AI-Described States to Generate (${aiToCreate.length})
+`;
+  if (aiToCreate.length === 0) {
+    md += `*No AI-generated steps required.*\n\n`;
+  } else {
+    aiToCreate.forEach((item, idx) => {
+      md += `#### ${idx + 1}. \`${item.name}\`\n`;
+      md += `- **Namespace Target:** \`${item.namespace}\`\n`;
+      md += `- **Generation Prompt:** Create Python state with \`@step\` decorator and pydantic DTO.\n\n`;
+    });
+  }
+
+  md += `---
+
+## 2. 🔀 Control Flow Structures (${controlBlocks.length})
+
+`;
+  controlBlocks.forEach((b, idx) => {
+    md += `- **Control Node ${idx + 1}:** \`${b.type}\``;
+    if (b.getFieldValue("CONDITION")) {
+      md += ` (Condition: \`${b.getFieldValue("CONDITION")}\`)`;
+    }
+    if (b.getFieldValue("ITERATIONS")) {
+      md += ` (Repeat: \`${b.getFieldValue("ITERATIONS")}\` times)`;
+    }
+    md += `\n`;
+  });
+
+  md += `\n---
+
+## 3. 🛠️ Data Type Conversion & Intermediary Adapters (mcp-wpipe)
+
+> **Automatic Compatibility Policy:**
+> If a connection between two states in the pipeline cannot be executed directly due to missing variables or incompatible payload formats (e.g. \`image_bytes\` ➔ \`numpy.ndarray\` or \`dict\` ➔ \`json_str\`), **intermediate adapter steps** will be scaffolded automatically using **\`mcp-wpipe\`** to guarantee end-to-end execution.
+
+---
+
+## 4. 🚀 Execution & Testing Verification
+
+Would you like to execute and dry-run test this pipeline in the Docker sandbox right now?
+`;
+
+  return md;
+}
+
 interface BlocklyWorkspaceProps {
   onWorkspaceChange?: (workspace: Blockly.WorkspaceSvg) => void;
 }
