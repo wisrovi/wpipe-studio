@@ -143,9 +143,11 @@ export function getMermaidFromBlocklyWorkspace(): string {
   let lines: string[] = ["graph TD"];
   let nodeCounter = 1;
 
-  function traverseBlock(block: Blockly.Block): string {
+  // Helper struct returning both firstNodeId (entry) and lastNodeId (exit point for sequential connection)
+  function traverseBlock(block: Blockly.Block): { entryId: string; exitId: string } {
     const currentId = `node_${nodeCounter++}`;
     const type = block.type;
+    let exitId = currentId;
 
     if (type === "wpipe_step") {
       const name = block.getFieldValue("STEP_NAME") || "Step";
@@ -156,15 +158,15 @@ export function getMermaidFromBlocklyWorkspace(): string {
       
       const doInput = block.getInput("DO");
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
-        const childId = traverseBlock(doInput.connection.targetBlock()!);
-        lines.push(`    ${currentId} -->|THEN| ${childId}`);
+        const childRes = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|THEN| ${childRes.entryId}`);
       }
 
       if (type === "wpipe_if_else") {
         const elseInput = block.getInput("ELSE");
         if (elseInput && elseInput.connection && elseInput.connection.targetBlock()) {
-          const elseChildId = traverseBlock(elseInput.connection.targetBlock()!);
-          lines.push(`    ${currentId} -->|ELSE| ${elseChildId}`);
+          const elseChildRes = traverseBlock(elseInput.connection.targetBlock()!);
+          lines.push(`    ${currentId} -->|ELSE| ${elseChildRes.entryId}`);
         }
       }
     } else if (type === "wpipe_for") {
@@ -172,34 +174,37 @@ export function getMermaidFromBlocklyWorkspace(): string {
       lines.push(`    ${currentId}["🔁 REPEAT ${iters} TIMES"]`);
       const doInput = block.getInput("DO");
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
-        const childId = traverseBlock(doInput.connection.targetBlock()!);
-        lines.push(`    ${currentId} -->|DO| ${childId}`);
+        const childRes = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|DO| ${childRes.entryId}`);
+        lines.push(`    ${childRes.exitId} -.->|LOOP AGAIN| ${currentId}`);
       }
     } else if (type === "wpipe_while") {
       const cond = block.getFieldValue("CONDITION") || "Condition";
       lines.push(`    ${currentId}["🔁 REPEAT WHILE: ${cond}"]`);
       const doInput = block.getInput("DO");
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
-        const childId = traverseBlock(doInput.connection.targetBlock()!);
-        lines.push(`    ${currentId} -->|DO| ${childId}`);
+        const childRes = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|DO| ${childRes.entryId}`);
+        lines.push(`    ${childRes.exitId} -.->|LOOP BACK| ${currentId}`);
       }
     } else if (type === "wpipe_parallel") {
       lines.push(`    ${currentId}["⚡ RUN IN PARALLEL"]`);
       const doInput = block.getInput("DO");
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
-        const childId = traverseBlock(doInput.connection.targetBlock()!);
-        lines.push(`    ${currentId} -->|PARALLEL| ${childId}`);
+        const childRes = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|PARALLEL| ${childRes.entryId}`);
       }
     } else {
       lines.push(`    ${currentId}["${type}"]`);
     }
 
     if (block.nextConnection && block.nextConnection.targetBlock()) {
-      const nextId = traverseBlock(block.nextConnection.targetBlock()!);
-      lines.push(`    ${currentId} --> ${nextId}`);
+      const nextRes = traverseBlock(block.nextConnection.targetBlock()!);
+      lines.push(`    ${currentId} --> ${nextRes.entryId}`);
+      exitId = nextRes.exitId;
     }
 
-    return currentId;
+    return { entryId: currentId, exitId };
   }
 
   topBlocks.forEach((tb) => {
