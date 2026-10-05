@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
 import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace } from "./components/BlocklyWorkspace";
+import mermaid from "mermaid";
 
 interface ParamSpec {
   name: string;
@@ -49,6 +50,24 @@ export default function App() {
   const [mermaidCode, setMermaidCode] = useState<string>("");
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [pipelineJsonText, setPipelineJsonText] = useState<string>("");
+  const mermaidRenderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showMermaidModal && mermaidCode && mermaidRenderRef.current) {
+      mermaid.initialize({ startOnLoad: false, theme: "dark" });
+      mermaidRenderRef.current.innerHTML = "";
+      mermaid
+        .render("mermaid_svg_graph", mermaidCode)
+        .then(({ svg }) => {
+          if (mermaidRenderRef.current) {
+            mermaidRenderRef.current.innerHTML = svg;
+          }
+        })
+        .catch((err) => {
+          console.error("Mermaid render error:", err);
+        });
+    }
+  }, [showMermaidModal, mermaidCode]);
 
   const [catalog, setCatalog] = useState<CatalogStep[]>([]);
   const [userStates, setUserStates] = useState<CatalogStep[]>([]);
@@ -1234,36 +1253,59 @@ export default function App() {
         </div>
       )}
 
-      {/* Mermaid Graph Render Preview Modal */}
+      {/* Rendered Pipeline Flow Graph Modal */}
       {showMermaidModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl glass-panel">
+          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl glass-panel">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
               <div>
                 <h3 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-300 font-heading">
-                  📊 Mermaid Pipeline Flowchart
+                  📊 Rendered Pipeline Flowchart
                 </h3>
-                <p className="text-xs text-gray-400">Flowchart representation compatible with VSCode WPipe extension.</p>
+                <p className="text-xs text-gray-400">Visual flow graph generated from your visual Scratch pipeline blocks.</p>
               </div>
               <button onClick={() => setShowMermaidModal(false)} className="text-gray-400 hover:text-white font-bold p-1 text-lg">
                 ✕
               </button>
             </div>
 
-            <pre className="bg-gray-950 p-4 rounded-xl border border-sky-900/60 font-mono text-xs text-sky-300 overflow-x-auto whitespace-pre-wrap max-h-96">
-              {mermaidCode}
-            </pre>
+            {/* Rendered SVG Container */}
+            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 flex items-center justify-center overflow-auto max-h-[450px] min-h-[250px]">
+              <div ref={mermaidRenderRef} className="w-full flex justify-center text-center"></div>
+            </div>
 
             <div className="flex justify-between items-center pt-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(mermaidCode);
-                  setStatusMessage("Copied Mermaid code to clipboard!");
-                }}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded-lg text-xs font-semibold border border-gray-700"
-              >
-                📋 Copy Code
-              </button>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(mermaidCode);
+                    setStatusMessage("Copied Mermaid code to clipboard!");
+                  }}
+                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded-lg text-xs font-semibold border border-gray-700 transition active:scale-95"
+                  title="Copy underlying Mermaid syntax code"
+                >
+                  📋 Copy Mermaid Code
+                </button>
+                <button
+                  onClick={() => {
+                    const svgEl = mermaidRenderRef.current?.querySelector("svg");
+                    if (!svgEl) return;
+                    const svgData = new XMLSerializer().serializeToString(svgEl);
+                    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                    const svgUrl = URL.createObjectURL(svgBlob);
+                    const downloadLink = document.createElement("a");
+                    downloadLink.href = svgUrl;
+                    downloadLink.download = "wpipe_pipeline_flowchart.svg";
+                    downloadLink.click();
+                    setStatusMessage("Exported flowchart as SVG image!");
+                  }}
+                  className="px-3 py-1.5 bg-sky-950 hover:bg-sky-900 text-sky-300 rounded-lg text-xs font-semibold border border-sky-700 transition active:scale-95"
+                  title="Export rendered flowchart graph as SVG image"
+                >
+                  🖼️ Export Image (SVG)
+                </button>
+              </div>
+
               <button
                 onClick={() => setShowMermaidModal(false)}
                 className="btn-glossy px-4 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-semibold shadow"
