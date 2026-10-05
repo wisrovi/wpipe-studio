@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
-import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace } from "./components/BlocklyWorkspace";
+import { BlocklyComponent, addStepBlockToWorkspace, addControlBlockToWorkspace, getMermaidFromBlocklyWorkspace } from "./components/BlocklyWorkspace";
 import mermaid from "mermaid";
 
 interface ParamSpec {
@@ -684,21 +684,12 @@ export default function App() {
     setStatusMessage(`Created AI Step '${aiStepName}' and added to canvas`);
   };
 
-  // Generate Mermaid Diagram (VSCode WPipe Extension format)
+  // Generate Mermaid Diagram (VSCode WPipe Extension format) from current Blockly Canvas state
   const generateMermaidDiagram = () => {
-    let lines = ["graph TD"];
-    nodes.forEach((n) => {
-      const label = n.data.label.replace(/"/g, "'");
-      const shape = n.data.node_type === "condition" ? `{{"${label}"}}` : `["${label}"]`;
-      lines.push(`    ${n.id}${shape}`);
-    });
-    edges.forEach((e) => {
-      lines.push(`    ${e.source} --> ${e.target}`);
-    });
-    const code = lines.join("\n");
+    const code = getMermaidFromBlocklyWorkspace();
     setMermaidCode(code);
     setShowMermaidModal(true);
-    setStatusMessage("Generated Mermaid flowchart preview!");
+    setStatusMessage("Generated live Mermaid flowchart preview from Blockly canvas!");
   };
 
   // Export Pipeline JSON (WPipe Standard JSON format)
