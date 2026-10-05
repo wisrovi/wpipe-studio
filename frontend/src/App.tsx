@@ -45,31 +45,32 @@ export default function App() {
   // Mobile Drawer state
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
-  // Mermaid & Pipeline JSON Preview Modals
-  const [showMermaidModal, setShowMermaidModal] = useState<boolean>(false);
+  // Workspace View Mode: 'canvas' (Blockly visual editor) vs 'flowchart' (Full-screen Rendered Mermaid Flowchart)
+  const [workspaceView, setWorkspaceView] = useState<"canvas" | "flowchart">("canvas");
   const [mermaidCode, setMermaidCode] = useState<string>("");
   const [zoomScale, setZoomScale] = useState<number>(1.0);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [pipelineJsonText, setPipelineJsonText] = useState<string>("");
   const mermaidRenderRef = useRef<HTMLDivElement>(null);
+  const mermaidFullRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (showMermaidModal && mermaidCode && mermaidRenderRef.current) {
+    if (workspaceView === "flowchart" && mermaidCode && mermaidFullRef.current) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
-      mermaidRenderRef.current.innerHTML = "";
-      const uniqueSvgId = `mermaid_svg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      mermaidFullRef.current.innerHTML = "";
+      const uniqueSvgId = `mermaid_svg_full_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
       mermaid
         .render(uniqueSvgId, mermaidCode)
         .then(({ svg }) => {
-          if (mermaidRenderRef.current) {
-            mermaidRenderRef.current.innerHTML = svg;
+          if (mermaidFullRef.current) {
+            mermaidFullRef.current.innerHTML = svg;
           }
         })
         .catch((err) => {
           console.error("Mermaid render error:", err);
         });
     }
-  }, [showMermaidModal, mermaidCode]);
+  }, [workspaceView, mermaidCode]);
 
   const [catalog, setCatalog] = useState<CatalogStep[]>([]);
   const [userStates, setUserStates] = useState<CatalogStep[]>([]);
@@ -690,8 +691,8 @@ export default function App() {
   const generateMermaidDiagram = () => {
     const code = getMermaidFromBlocklyWorkspace();
     setMermaidCode(code);
-    setShowMermaidModal(true);
-    setStatusMessage("Generated live Mermaid flowchart preview from Blockly canvas!");
+    setWorkspaceView("flowchart");
+    setStatusMessage("Generated live Mermaid flowchart preview in full workspace!");
   };
 
   // Export Pipeline JSON (WPipe Standard JSON format)
@@ -888,6 +889,26 @@ export default function App() {
           </div>
         </div>
 
+        {/* Mode Switcher Tabs */}
+        <div className="flex items-center bg-gray-950 p-1 rounded-xl border border-gray-800 space-x-1">
+          <button
+            onClick={() => setWorkspaceView("canvas")}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              workspaceView === "canvas" ? "bg-indigo-600 text-white shadow-md" : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            <span>🧩 Canvas Editor</span>
+          </button>
+          <button
+            onClick={generateMermaidDiagram}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              workspaceView === "flowchart" ? "bg-sky-600 text-white shadow-md" : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            <span>📊 Live Flowchart</span>
+          </button>
+        </div>
+
         <div className="flex items-center space-x-2.5">
           <button
             onClick={generateMermaidDiagram}
@@ -1060,21 +1081,129 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Central Workspace: Google Blockly Native Scratch Canvas */}
+        {/* Central Workspace: Google Blockly Native Scratch Canvas OR Fullscreen Flowchart */}
         <main ref={canvasRef} className="flex-1 bg-[#05070c] p-4 relative overflow-hidden flex flex-col justify-between">
-          {/* Blockly Native Canvas */}
-          <div className="w-full h-full">
-            <BlocklyComponent
-              onWorkspaceChange={(ws) => {
-                (window as any).blocklyWorkspace = ws;
-              }}
-            />
-          </div>
+          {workspaceView === "canvas" ? (
+            /* Blockly Native Canvas */
+            <div className="w-full h-full">
+              <BlocklyComponent
+                onWorkspaceChange={(ws) => {
+                  (window as any).blocklyWorkspace = ws;
+                }}
+              />
+            </div>
+          ) : (
+            /* FULLSCREEN RENDERED FLOWCHART VIEW */
+            <div className="w-full h-full flex flex-col bg-gray-950 rounded-2xl border border-sky-900/60 overflow-hidden shadow-2xl">
+              {/* Fullscreen View Toolbar */}
+              <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-b border-gray-800">
+                <div className="flex items-center space-x-3">
+                  <h3 className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-300 font-heading">
+                    📊 Live Interactive Flowchart View
+                  </h3>
+                  <span className="text-xs text-gray-400">Full workspace layout with infinite pan and zoom controls</span>
+                </div>
+
+                {/* Toolbar Export & Zoom Controls */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 bg-gray-950 px-3 py-1.5 rounded-lg border border-gray-800">
+                    <span className="text-xs font-semibold text-gray-400 mr-1">Zoom:</span>
+                    <button
+                      onClick={() => setZoomScale((s) => Math.max(0.2, s - 0.15))}
+                      className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded text-xs font-bold transition"
+                      title="Zoom Out"
+                    >
+                      🔍 -
+                    </button>
+                    <span className="text-xs font-mono text-sky-400 w-12 text-center">{Math.round(zoomScale * 100)}%</span>
+                    <button
+                      onClick={() => setZoomScale((s) => Math.min(3.0, s + 0.15))}
+                      className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded text-xs font-bold transition"
+                      title="Zoom In"
+                    >
+                      🔍 +
+                    </button>
+                    <button
+                      onClick={() => setZoomScale(1.0)}
+                      className="px-2.5 py-0.5 bg-sky-950 hover:bg-sky-900 text-sky-300 rounded text-xs font-semibold border border-sky-800 transition"
+                      title="Reset Zoom to 100%"
+                    >
+                      Reset 100%
+                    </button>
+                    <button
+                      onClick={() => setZoomScale(0.7)}
+                      className="px-2.5 py-0.5 bg-indigo-950 hover:bg-indigo-900 text-indigo-300 rounded text-xs font-semibold border border-indigo-800 transition"
+                      title="Fit large flowchart"
+                    >
+                      Fit View
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(mermaidCode);
+                      setStatusMessage("Copied Mermaid code to clipboard!");
+                    }}
+                    className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded-lg text-xs font-semibold border border-gray-700 transition"
+                  >
+                    📋 Copy Code
+                  </button>
+                  <button
+                    onClick={() => {
+                      const mdPlan = getWorkPlanFromBlocklyWorkspace(catalog);
+                      const mdBlob = new Blob([mdPlan], { type: "text/markdown;charset=utf-8" });
+                      const mdUrl = URL.createObjectURL(mdBlob);
+                      const downloadLink = document.createElement("a");
+                      downloadLink.href = mdUrl;
+                      downloadLink.download = "WPipe_Pipeline_Work_Plan.md";
+                      downloadLink.click();
+                      setStatusMessage("Exported Work Plan (.md) file!");
+                    }}
+                    className="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-700 transition flex items-center gap-1"
+                  >
+                    📝 Export Work Plan (.md)
+                  </button>
+                  <button
+                    onClick={() => {
+                      const svgEl = mermaidFullRef.current?.querySelector("svg");
+                      if (!svgEl) return;
+                      const svgData = new XMLSerializer().serializeToString(svgEl);
+                      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                      const svgUrl = URL.createObjectURL(svgBlob);
+                      const downloadLink = document.createElement("a");
+                      downloadLink.href = svgUrl;
+                      downloadLink.download = "wpipe_pipeline_flowchart.svg";
+                      downloadLink.click();
+                      setStatusMessage("Exported flowchart as SVG image!");
+                    }}
+                    className="px-3 py-1.5 bg-sky-950 hover:bg-sky-900 text-sky-300 rounded-lg text-xs font-semibold border border-sky-700 transition"
+                  >
+                    🖼️ Export Image (SVG)
+                  </button>
+                  <button
+                    onClick={() => setWorkspaceView("canvas")}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow"
+                  >
+                    🧩 Return to Editor
+                  </button>
+                </div>
+              </div>
+
+              {/* Infinite Scroll & Pan Canvas Container */}
+              <div className="flex-1 overflow-auto p-8 custom-modal-scrollbar flex justify-center items-start bg-[#05070c]">
+                <div
+                  ref={mermaidFullRef}
+                  style={{ transform: `scale(${zoomScale})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
+                  className="min-w-full flex justify-center text-center items-center py-6"
+                ></div>
+              </div>
+            </div>
+          )}
 
           {/* Bottom Status Bar */}
-          <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg mt-2">
+          <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex items-center justify-between z-10 shadow-lg mt-2 flex-shrink-0">
             <span>Status: <strong className="text-gray-200">{statusMessage}</strong></span>
-            <span>Engine: <strong className="text-indigo-400 font-heading">Google Blockly (Scratch 3.0 Native Canvas)</strong></span>
+            <span>View: <strong className="text-sky-400 font-heading">{workspaceView === "canvas" ? "Blockly Visual Editor" : "Full Flowchart Workspace"}</strong></span>
           </div>
         </main>
       </div>
@@ -1246,125 +1375,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Rendered Pipeline Flow Graph Modal */}
-      {showMermaidModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-5xl w-full p-6 space-y-4 shadow-2xl glass-panel max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Pinned Header */}
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3 flex-shrink-0">
-              <div>
-                <h3 className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-300 font-heading">
-                  📊 Rendered Pipeline Flowchart
-                </h3>
-                <p className="text-xs text-gray-400">Visual flow graph generated from your visual Scratch pipeline blocks.</p>
-              </div>
 
-              {/* Interactive Zoom Controls */}
-              <div className="flex items-center space-x-2 bg-gray-950 px-3 py-1.5 rounded-lg border border-gray-800">
-                <span className="text-xs font-semibold text-gray-400 mr-1">Zoom:</span>
-                <button
-                  onClick={() => setZoomScale((s) => Math.max(0.3, s - 0.15))}
-                  className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded text-xs font-bold transition"
-                  title="Zoom Out"
-                >
-                  🔍 -
-                </button>
-                <span className="text-xs font-mono text-sky-400 w-12 text-center">{Math.round(zoomScale * 100)}%</span>
-                <button
-                  onClick={() => setZoomScale((s) => Math.min(2.5, s + 0.15))}
-                  className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded text-xs font-bold transition"
-                  title="Zoom In"
-                >
-                  🔍 +
-                </button>
-                <button
-                  onClick={() => setZoomScale(1.0)}
-                  className="px-2 py-0.5 bg-sky-950 hover:bg-sky-900 text-sky-300 rounded text-xs font-semibold border border-sky-800 transition ml-1"
-                  title="Reset Zoom to 100%"
-                >
-                  Reset
-                </button>
-                <button
-                  onClick={() => setZoomScale(0.65)}
-                  className="px-2 py-0.5 bg-indigo-950 hover:bg-indigo-900 text-indigo-300 rounded text-xs font-semibold border border-indigo-800 transition"
-                  title="Fit large flowchart into viewport"
-                >
-                  Fit View
-                </button>
-                <button onClick={() => setShowMermaidModal(false)} className="text-gray-400 hover:text-white font-bold p-1 text-lg ml-2">
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Scrollable Viewport SVG Container with Zoom Scale */}
-            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 overflow-auto flex-1 min-h-[350px] max-h-[65vh] custom-modal-scrollbar flex justify-center items-start">
-              <div
-                ref={mermaidRenderRef}
-                style={{ transform: `scale(${zoomScale})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
-                className="w-full flex justify-center text-center items-center py-4"
-              ></div>
-            </div>
-
-            {/* Pinned Footer Toolbar */}
-            <div className="flex justify-between items-center pt-2 flex-shrink-0 border-t border-gray-800/80">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(mermaidCode);
-                    setStatusMessage("Copied Mermaid code to clipboard!");
-                  }}
-                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded-lg text-xs font-semibold border border-gray-700 transition active:scale-95"
-                  title="Copy underlying Mermaid syntax code"
-                >
-                  📋 Copy Mermaid Code
-                </button>
-                <button
-                  onClick={() => {
-                    const mdPlan = getWorkPlanFromBlocklyWorkspace(catalog);
-                    const mdBlob = new Blob([mdPlan], { type: "text/markdown;charset=utf-8" });
-                    const mdUrl = URL.createObjectURL(mdBlob);
-                    const downloadLink = document.createElement("a");
-                    downloadLink.href = mdUrl;
-                    downloadLink.download = "WPipe_Pipeline_Work_Plan.md";
-                    downloadLink.click();
-                    setStatusMessage("Exported Work Plan (.md) file!");
-                  }}
-                  className="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-700 transition active:scale-95 flex items-center gap-1"
-                  title="Export complete execution work plan in Markdown format"
-                >
-                  📝 Export Work Plan (.md)
-                </button>
-                <button
-                  onClick={() => {
-                    const svgEl = mermaidRenderRef.current?.querySelector("svg");
-                    if (!svgEl) return;
-                    const svgData = new XMLSerializer().serializeToString(svgEl);
-                    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-                    const svgUrl = URL.createObjectURL(svgBlob);
-                    const downloadLink = document.createElement("a");
-                    downloadLink.href = svgUrl;
-                    downloadLink.download = "wpipe_pipeline_flowchart.svg";
-                    downloadLink.click();
-                    setStatusMessage("Exported flowchart as SVG image!");
-                  }}
-                  className="px-3 py-1.5 bg-sky-950 hover:bg-sky-900 text-sky-300 rounded-lg text-xs font-semibold border border-sky-700 transition active:scale-95"
-                  title="Export rendered flowchart graph as SVG image"
-                >
-                  🖼️ Export Image (SVG)
-                </button>
-              </div>
-
-              <button
-                onClick={() => setShowMermaidModal(false)}
-                className="btn-glossy px-4 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-semibold shadow"
-              >
-                Close Preview
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Export Pipeline JSON Modal */}
       {showJsonModal && (
