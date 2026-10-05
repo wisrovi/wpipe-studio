@@ -143,15 +143,16 @@ export function getMermaidFromBlocklyWorkspace(): string {
   let lines: string[] = ["graph TD"];
   let nodeCounter = 1;
 
-  // Helper struct returning both firstNodeId (entry) and lastNodeId (exit point for sequential connection)
-  function traverseBlock(block: Blockly.Block): { entryId: string; exitId: string } {
+  // Helper struct returning both entryId (start of block/stack) and exitNodes (list of leaf exit node IDs to converge into next step)
+  function traverseBlock(block: Blockly.Block): { entryId: string; exitNodes: string[] } {
     const currentId = `node_${nodeCounter++}`;
     const type = block.type;
-    let exitId = currentId;
+    let branchExits: string[] = [];
 
     if (type === "wpipe_step") {
       const name = block.getFieldValue("STEP_NAME") || "Step";
       lines.push(`    ${currentId}["📦 ${name}"]`);
+      branchExits = [currentId];
     } else if (type === "wpipe_if" || type === "wpipe_if_else") {
       const cond = block.getFieldValue("CONDITION") || "IF Condition";
       lines.push(`    ${currentId}{{"🔀 IF: ${cond}"}}`);
@@ -160,6 +161,9 @@ export function getMermaidFromBlocklyWorkspace(): string {
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
         const childRes = traverseBlock(doInput.connection.targetBlock()!);
         lines.push(`    ${currentId} -->|THEN| ${childRes.entryId}`);
+        branchExits.push(...childRes.exitNodes);
+      } else {
+        branchExits.push(currentId);
       }
 
       if (type === "wpipe_if_else") {
@@ -167,6 +171,9 @@ export function getMermaidFromBlocklyWorkspace(): string {
         if (elseInput && elseInput.connection && elseInput.connection.targetBlock()) {
           const elseChildRes = traverseBlock(elseInput.connection.targetBlock()!);
           lines.push(`    ${currentId} -->|ELSE| ${elseChildRes.entryId}`);
+          branchExits.push(...elseChildRes.exitNodes);
+        } else {
+          branchExits.push(currentId);
         }
       }
     } else if (type === "wpipe_for") {
@@ -176,8 +183,9 @@ export function getMermaidFromBlocklyWorkspace(): string {
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
         const childRes = traverseBlock(doInput.connection.targetBlock()!);
         lines.push(`    ${currentId} -->|DO| ${childRes.entryId}`);
-        lines.push(`    ${childRes.exitId} -.->|LOOP AGAIN| ${currentId}`);
+        childRes.exitNodes.forEach((ex) => lines.push(`    ${ex} -.->|LOOP AGAIN| ${currentId}`));
       }
+      branchExits = [currentId];
     } else if (type === "wpipe_while") {
       const cond = block.getFieldValue("CONDITION") || "Condition";
       lines.push(`    ${currentId}["🔁 REPEAT WHILE: ${cond}"]`);
@@ -185,26 +193,34 @@ export function getMermaidFromBlocklyWorkspace(): string {
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
         const childRes = traverseBlock(doInput.connection.targetBlock()!);
         lines.push(`    ${currentId} -->|DO| ${childRes.entryId}`);
-        lines.push(`    ${childRes.exitId} -.->|LOOP BACK| ${currentId}`);
+        childRes.exitNodes.forEach((ex) => lines.push(`    ${ex} -.->|LOOP BACK| ${currentId}`));
       }
+      branchExits = [currentId];
     } else if (type === "wpipe_parallel") {
       lines.push(`    ${currentId}["⚡ RUN IN PARALLEL"]`);
       const doInput = block.getInput("DO");
       if (doInput && doInput.connection && doInput.connection.targetBlock()) {
         const childRes = traverseBlock(doInput.connection.targetBlock()!);
         lines.push(`    ${currentId} -->|PARALLEL| ${childRes.entryId}`);
+        branchExits.push(...childRes.exitNodes);
+      } else {
+        branchExits.push(currentId);
       }
     } else {
       lines.push(`    ${currentId}["${type}"]`);
+      branchExits = [currentId];
     }
 
+    let finalExitNodes = branchExits;
     if (block.nextConnection && block.nextConnection.targetBlock()) {
       const nextRes = traverseBlock(block.nextConnection.targetBlock()!);
-      lines.push(`    ${currentId} --> ${nextRes.entryId}`);
-      exitId = nextRes.exitId;
+      branchExits.forEach((ex) => {
+        lines.push(`    ${ex} --> ${nextRes.entryId}`);
+      });
+      finalExitNodes = nextRes.exitNodes;
     }
 
-    return { entryId: currentId, exitId };
+    return { entryId: currentId, exitNodes: finalExitNodes };
   }
 
   topBlocks.forEach((tb) => {
