@@ -133,6 +133,82 @@ export function addControlBlockToWorkspace(type: "wpipe_if" | "wpipe_if_else" | 
   }
 }
 
+export function getMermaidFromBlocklyWorkspace(): string {
+  if (!activeWorkspaceRef) return "graph TD\n    empty[\"Empty Canvas\"]";
+  const topBlocks = activeWorkspaceRef.getTopBlocks(true);
+  if (!topBlocks || topBlocks.length === 0) {
+    return "graph TD\n    empty[\"Empty Canvas\"]";
+  }
+
+  let lines: string[] = ["graph TD"];
+  let nodeCounter = 1;
+
+  function traverseBlock(block: Blockly.Block): string {
+    const currentId = `node_${nodeCounter++}`;
+    const type = block.type;
+
+    if (type === "wpipe_step") {
+      const name = block.getFieldValue("STEP_NAME") || "Step";
+      lines.push(`    ${currentId}["📦 ${name}"]`);
+    } else if (type === "wpipe_if" || type === "wpipe_if_else") {
+      const cond = block.getFieldValue("CONDITION") || "IF Condition";
+      lines.push(`    ${currentId}{{"🔀 IF: ${cond}"}}`);
+      
+      const doInput = block.getInput("DO");
+      if (doInput && doInput.connection && doInput.connection.targetBlock()) {
+        const childId = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|THEN| ${childId}`);
+      }
+
+      if (type === "wpipe_if_else") {
+        const elseInput = block.getInput("ELSE");
+        if (elseInput && elseInput.connection && elseInput.connection.targetBlock()) {
+          const elseChildId = traverseBlock(elseInput.connection.targetBlock()!);
+          lines.push(`    ${currentId} -->|ELSE| ${elseChildId}`);
+        }
+      }
+    } else if (type === "wpipe_for") {
+      const iters = block.getFieldValue("ITERATIONS") || "N";
+      lines.push(`    ${currentId}["🔁 REPEAT ${iters} TIMES"]`);
+      const doInput = block.getInput("DO");
+      if (doInput && doInput.connection && doInput.connection.targetBlock()) {
+        const childId = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|DO| ${childId}`);
+      }
+    } else if (type === "wpipe_while") {
+      const cond = block.getFieldValue("CONDITION") || "Condition";
+      lines.push(`    ${currentId}["🔁 REPEAT WHILE: ${cond}"]`);
+      const doInput = block.getInput("DO");
+      if (doInput && doInput.connection && doInput.connection.targetBlock()) {
+        const childId = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|DO| ${childId}`);
+      }
+    } else if (type === "wpipe_parallel") {
+      lines.push(`    ${currentId}["⚡ RUN IN PARALLEL"]`);
+      const doInput = block.getInput("DO");
+      if (doInput && doInput.connection && doInput.connection.targetBlock()) {
+        const childId = traverseBlock(doInput.connection.targetBlock()!);
+        lines.push(`    ${currentId} -->|PARALLEL| ${childId}`);
+      }
+    } else {
+      lines.push(`    ${currentId}["${type}"]`);
+    }
+
+    if (block.nextConnection && block.nextConnection.targetBlock()) {
+      const nextId = traverseBlock(block.nextConnection.targetBlock()!);
+      lines.push(`    ${currentId} --> ${nextId}`);
+    }
+
+    return currentId;
+  }
+
+  topBlocks.forEach((tb) => {
+    traverseBlock(tb);
+  });
+
+  return lines.join("\n");
+}
+
 interface BlocklyWorkspaceProps {
   onWorkspaceChange?: (workspace: Blockly.WorkspaceSvg) => void;
 }
