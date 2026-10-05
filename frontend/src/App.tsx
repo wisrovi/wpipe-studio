@@ -56,8 +56,9 @@ export default function App() {
     if (showMermaidModal && mermaidCode && mermaidRenderRef.current) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
       mermaidRenderRef.current.innerHTML = "";
+      const uniqueSvgId = `mermaid_svg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
       mermaid
-        .render("mermaid_svg_graph", mermaidCode)
+        .render(uniqueSvgId, mermaidCode)
         .then(({ svg }) => {
           if (mermaidRenderRef.current) {
             mermaidRenderRef.current.innerHTML = svg;
