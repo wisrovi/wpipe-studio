@@ -1263,8 +1263,8 @@ export default function App() {
             </div>
 
             {/* Scrollable Viewport SVG Container */}
-            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 flex-1 overflow-auto min-h-[200px]">
-              <div ref={mermaidRenderRef} className="w-full h-full flex justify-center text-center items-center"></div>
+            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 overflow-auto max-h-[60vh] min-h-[250px] custom-modal-scrollbar">
+              <div ref={mermaidRenderRef} className="w-full min-w-[500px] flex justify-center text-center items-center"></div>
             </div>
 
             {/* Pinned Footer Toolbar */}
