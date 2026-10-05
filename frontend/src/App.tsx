@@ -48,6 +48,7 @@ export default function App() {
   // Mermaid & Pipeline JSON Preview Modals
   const [showMermaidModal, setShowMermaidModal] = useState<boolean>(false);
   const [mermaidCode, setMermaidCode] = useState<string>("");
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [pipelineJsonText, setPipelineJsonText] = useState<string>("");
   const mermaidRenderRef = useRef<HTMLDivElement>(null);
@@ -1247,8 +1248,8 @@ export default function App() {
 
       {/* Rendered Pipeline Flow Graph Modal */}
       {showMermaidModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-4xl w-full p-6 space-y-4 shadow-2xl glass-panel max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-sky-800/80 rounded-2xl max-w-5xl w-full p-6 space-y-4 shadow-2xl glass-panel max-h-[90vh] flex flex-col overflow-hidden">
             {/* Pinned Header */}
             <div className="flex items-center justify-between border-b border-gray-800 pb-3 flex-shrink-0">
               <div>
@@ -1257,14 +1258,52 @@ export default function App() {
                 </h3>
                 <p className="text-xs text-gray-400">Visual flow graph generated from your visual Scratch pipeline blocks.</p>
               </div>
-              <button onClick={() => setShowMermaidModal(false)} className="text-gray-400 hover:text-white font-bold p-1 text-lg">
-                ✕
-              </button>
+
+              {/* Interactive Zoom Controls */}
+              <div className="flex items-center space-x-2 bg-gray-950 px-3 py-1.5 rounded-lg border border-gray-800">
+                <span className="text-xs font-semibold text-gray-400 mr-1">Zoom:</span>
+                <button
+                  onClick={() => setZoomScale((s) => Math.max(0.3, s - 0.15))}
+                  className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded text-xs font-bold transition"
+                  title="Zoom Out"
+                >
+                  🔍 -
+                </button>
+                <span className="text-xs font-mono text-sky-400 w-12 text-center">{Math.round(zoomScale * 100)}%</span>
+                <button
+                  onClick={() => setZoomScale((s) => Math.min(2.5, s + 0.15))}
+                  className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-sky-300 rounded text-xs font-bold transition"
+                  title="Zoom In"
+                >
+                  🔍 +
+                </button>
+                <button
+                  onClick={() => setZoomScale(1.0)}
+                  className="px-2 py-0.5 bg-sky-950 hover:bg-sky-900 text-sky-300 rounded text-xs font-semibold border border-sky-800 transition ml-1"
+                  title="Reset Zoom to 100%"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setZoomScale(0.65)}
+                  className="px-2 py-0.5 bg-indigo-950 hover:bg-indigo-900 text-indigo-300 rounded text-xs font-semibold border border-indigo-800 transition"
+                  title="Fit large flowchart into viewport"
+                >
+                  Fit View
+                </button>
+                <button onClick={() => setShowMermaidModal(false)} className="text-gray-400 hover:text-white font-bold p-1 text-lg ml-2">
+                  ✕
+                </button>
+              </div>
             </div>
 
-            {/* Scrollable Viewport SVG Container */}
-            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 overflow-auto flex-1 min-h-0 custom-modal-scrollbar flex justify-center items-center">
-              <div ref={mermaidRenderRef} className="w-full flex justify-center text-center items-center"></div>
+            {/* Scrollable Viewport SVG Container with Zoom Scale */}
+            <div className="bg-gray-950 p-6 rounded-xl border border-sky-900/60 overflow-auto flex-1 min-h-[350px] max-h-[65vh] custom-modal-scrollbar flex justify-center items-start">
+              <div
+                ref={mermaidRenderRef}
+                style={{ transform: `scale(${zoomScale})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
+                className="w-full flex justify-center text-center items-center py-4"
+              ></div>
             </div>
 
             {/* Pinned Footer Toolbar */}
