@@ -1190,11 +1190,11 @@ export default function App() {
               </div>
 
               {/* Infinite Scroll & Pan Canvas Container */}
-              <div className="flex-1 overflow-auto p-8 custom-modal-scrollbar flex justify-center items-start bg-[#05070c]">
+              <div className="flex-1 overflow-auto p-8 custom-modal-scrollbar bg-[#05070c] relative">
                 <div
                   ref={mermaidFullRef}
-                  style={{ transform: `scale(${zoomScale})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
-                  className="min-w-full flex justify-center text-center items-center py-6"
+                  style={{ transform: `scale(${zoomScale})`, transformOrigin: "top left", transition: "transform 0.15s ease-out" }}
+                  className="inline-block min-w-full p-4 text-center"
                 ></div>
               </div>
             </div>
