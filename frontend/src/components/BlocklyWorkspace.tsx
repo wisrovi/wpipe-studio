@@ -175,6 +175,9 @@ export function getMermaidFromBlocklyWorkspace(): string {
         } else {
           branchExits.push(currentId);
         }
+      } else {
+        // Simple IF without ELSE: add a FALSE branch exit path
+        branchExits.push(currentId);
       }
     } else if (type === "wpipe_for") {
       const iters = block.getFieldValue("ITERATIONS") || "N";
