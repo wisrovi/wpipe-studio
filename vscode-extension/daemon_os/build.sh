@@ -27,10 +27,10 @@ if command -v nuitka &> /dev/null || python3 -m nuitka --version &> /dev/null; t
 elif command -v pyinstaller &> /dev/null || python3 -m PyInstaller --version &> /dev/null; then
     echo "📦 Usando PyInstaller..."
     python3 -m PyInstaller \
-        --onefile \
-        --name wpipe-engine \
+        --clean \
+        -y \
         --distpath "$OUTPUT_DIR" \
-        wpipe_engine/main.py
+        wpipe-engine.spec
 else
     echo "⚠️ Ni Nuitka ni PyInstaller están instalados."
     echo "Instale uno con: pip install nuitka"
