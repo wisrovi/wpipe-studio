@@ -27,6 +27,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 *.vsix
+!vscode-extension/extension/wpipe-vscode-2.0.0.vsix
 MANIFEST
 
 # PyInstaller
