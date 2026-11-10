@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { CanvasNode, CanvasEdge, CanvasIR, StepOrigin } from "./lib/ir/schemas";
 import {
   BlocklyComponent,
@@ -954,6 +954,19 @@ export default function App() {
   const simulationAbortRef = useRef<boolean>(false);
   const vsCodeSyncTimerRef = useRef<any>(null);
 
+  // Manual Save & Auto-Save controls
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("wpipe_canvas_autosave");
+      return saved !== null ? saved === "true" : false; // Default: Manual save (OFF)
+    } catch {
+      return false;
+    }
+  });
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [externalCodeModified, setExternalCodeModified] = useState<any | null>(null);
+
   // Step Parameters Modal State
   const [configModalBlock, setConfigModalBlock] = useState<any | null>(null);
   const [dynamicFields, setDynamicFields] = useState<ParamSpec[]>([]);
@@ -1460,6 +1473,21 @@ export default function App() {
         } catch (err: any) {
           console.warn("Failed to load initial VS Code pipeline:", err);
         }
+      } else if (msg.type === "codeModified") {
+        try {
+          if (msg.data) {
+            const raw = typeof msg.data === "string" ? msg.data : JSON.stringify(msg.data);
+            const parsedObj = typeof msg.data === "object" ? msg.data : JSON.parse(raw);
+            const wsState =
+              parsedObj?.project?.workspace_state ||
+              parsedObj?.workspace_state ||
+              parsedObj?.project?.canvas_ir?.workspace_state ||
+              parsedObj?.canvas_ir?.workspace_state;
+            if (wsState) {
+              setExternalCodeModified(wsState);
+            }
+          }
+        } catch {}
       } else if (msg.type === "update") {
         try {
           if (msg.data) {
@@ -1526,6 +1554,65 @@ export default function App() {
       window.removeEventListener("message", handleVsCodeMessage);
     };
   }, []);
+
+  // Explicit Manual Save (Ctrl+S or Save Button)
+  const handleManualSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const canvasIr = getCanvasIRFromBlocklyWorkspace(catalog);
+      const workspaceState = getWorkspaceStateJson();
+      if (workspaceState) {
+        (canvasIr as any).workspace_state = workspaceState;
+      }
+      const payload = {
+        type: "saveCanvas",
+        isManualSave: true,
+        canvasIr: {
+          format: "wpipe",
+          project: {
+            id: activeProjectId || "pipeline",
+            name: projectName,
+            protocol: "fastapi",
+            docker_image: customDockerImage,
+            canvas_ir: canvasIr,
+            workspace_state: workspaceState,
+            generated_files: generatedFiles,
+          },
+        },
+      };
+
+      if (typeof (window as any).__postToVsCode === "function") {
+        (window as any).__postToVsCode(payload);
+      } else {
+        window.parent.postMessage(payload, "*");
+        if (window.top && window.top !== window.parent) {
+          window.top.postMessage(payload, "*");
+        }
+      }
+
+      setHasUnsavedChanges(false);
+      setStatusMessage("✅ Pipeline guardado y microservicio compilado");
+      setTimeout(() => setStatusMessage(""), 3500);
+    } catch (err: any) {
+      console.error("Manual save error:", err);
+      setStatusMessage(`❌ Error al guardar: ${err.message}`);
+    } finally {
+      setTimeout(() => setIsSaving(false), 500);
+    }
+  }, [catalog, projectName, activeProjectId, customDockerImage, generatedFiles]);
+
+  // Global Keyboard Shortcut: Ctrl+S / Cmd+S for explicit save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleManualSave();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [handleManualSave]);
 
   // Fetch Projects using Hybrid Engine / Browser Dispatcher
   const fetchUserProjects = async (userId?: string, tokenOverride?: string) => {
@@ -1785,49 +1872,53 @@ export default function App() {
     // Auto-sync canvas changes to VS Code document in VS Code mode (ONLY on real user events)
     const isVSCode = isVSCodeEnvironment();
     if (isVSCode && isUserEvent) {
-      if (vsCodeSyncTimerRef.current) {
-        clearTimeout(vsCodeSyncTimerRef.current);
-      }
-      vsCodeSyncTimerRef.current = setTimeout(() => {
-        try {
-          const canvasIr = getCanvasIRFromBlocklyWorkspace(catalog);
-          const workspaceState = getWorkspaceStateJson();
-          if (workspaceState) {
-            (canvasIr as any).workspace_state = workspaceState;
-          }
-          const payload = {
-            type: "saveCanvas",
-            canvasIr: {
-              format: "wpipe",
-              project: {
-                id: activeProjectId || "pipeline",
-                name: projectName,
-                protocol: "fastapi",
-                docker_image: customDockerImage,
-                canvas_ir: canvasIr,
-                workspace_state: workspaceState,
-                generated_files: generatedFiles,
-              },
-            },
-          };
-          if (typeof (window as any).__postToVsCode === "function") {
-            (window as any).__postToVsCode(payload);
-          } else {
-            window.parent.postMessage(payload, "*");
-            if (window.top && window.top !== window.parent) {
-              window.top.postMessage(payload, "*");
-            }
-          }
-        } catch (syncErr) {
-          console.warn("Error posting saveCanvas:", syncErr);
+      setHasUnsavedChanges(true);
+      if (autoSaveEnabled) {
+        if (vsCodeSyncTimerRef.current) {
+          clearTimeout(vsCodeSyncTimerRef.current);
         }
-      }, 400);
-    } else if (engineStatus.connected && isUserEvent) {
-      // Auto-save to Local Disk (~/.wpipe/workspaces/) with debounce when running in browser with connected engine
-      if (vsCodeSyncTimerRef.current) {
-        clearTimeout(vsCodeSyncTimerRef.current);
+        vsCodeSyncTimerRef.current = setTimeout(() => {
+          try {
+            const canvasIr = getCanvasIRFromBlocklyWorkspace(catalog);
+            const workspaceState = getWorkspaceStateJson();
+            if (workspaceState) {
+              (canvasIr as any).workspace_state = workspaceState;
+            }
+            const payload = {
+              type: "saveCanvas",
+              canvasIr: {
+                format: "wpipe",
+                project: {
+                  id: activeProjectId || "pipeline",
+                  name: projectName,
+                  protocol: "fastapi",
+                  docker_image: customDockerImage,
+                  canvas_ir: canvasIr,
+                  workspace_state: workspaceState,
+                  generated_files: generatedFiles,
+                },
+              },
+            };
+            if (typeof (window as any).__postToVsCode === "function") {
+              (window as any).__postToVsCode(payload);
+            } else {
+              window.parent.postMessage(payload, "*");
+              if (window.top && window.top !== window.parent) {
+                window.top.postMessage(payload, "*");
+              }
+            }
+          } catch (syncErr) {
+            console.warn("Error posting saveCanvas:", syncErr);
+          }
+        }, 400);
       }
-      vsCodeSyncTimerRef.current = setTimeout(async () => {
+    } else if (engineStatus.connected && isUserEvent) {
+      setHasUnsavedChanges(true);
+      if (autoSaveEnabled) {
+        if (vsCodeSyncTimerRef.current) {
+          clearTimeout(vsCodeSyncTimerRef.current);
+        }
+        vsCodeSyncTimerRef.current = setTimeout(async () => {
         try {
           const canvasIr = getCanvasIRFromBlocklyWorkspace(catalog);
           const workspaceState = getWorkspaceStateJson();
@@ -1850,6 +1941,7 @@ export default function App() {
           }
         } catch {}
       }, 1000);
+      }
     }
   };
 
@@ -5168,6 +5260,47 @@ export default function App() {
 
               <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
 
+              {/* Explicit Save Button (Ctrl+S) */}
+              <button
+                onClick={handleManualSave}
+                disabled={isSaving}
+                title="Guardar Pipeline y Compilar Microservicio (Ctrl+S)"
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow-sm ${
+                  hasUnsavedChanges
+                    ? "bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/50"
+                    : "bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 border border-emerald-500/40"
+                }`}
+              >
+                <Save size={13} className={isSaving ? "animate-spin" : ""} />
+                <span>{isSaving ? "Guardando..." : hasUnsavedChanges ? "Guardar ●" : "Guardado ✓"}</span>
+              </button>
+
+              {/* Auto-Save Toggle */}
+              <button
+                onClick={() => {
+                  const nextVal = !autoSaveEnabled;
+                  setAutoSaveEnabled(nextVal);
+                  try {
+                    localStorage.setItem("wpipe_canvas_autosave", String(nextVal));
+                  } catch {}
+                  setStatusMessage(nextVal ? "Autoguardado activado (sincronización continua)" : "Autoguardado desactivado (modo manual con Ctrl+S)");
+                  setTimeout(() => setStatusMessage(""), 3000);
+                }}
+                title={autoSaveEnabled ? "Autoguardado: ACTIVADO (Guardado continuo al mover bloques)" : "Autoguardado: DESACTIVADO (Guarda manualmente con Ctrl+S)"}
+                className={`px-2 py-1.5 rounded-lg flex items-center gap-1 text-[11px] font-mono font-medium transition cursor-pointer border ${
+                  autoSaveEnabled
+                    ? "bg-emerald-950/60 text-emerald-400 border-emerald-600/50"
+                    : "bg-gray-800/80 text-gray-400 border-gray-700/60 hover:text-gray-300"
+                }`}
+              >
+                <span>Auto:</span>
+                <span className={autoSaveEnabled ? "text-emerald-300 font-bold" : "text-gray-400"}>
+                  {autoSaveEnabled ? "ON" : "OFF"}
+                </span>
+              </button>
+
+              <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
+
               <button
                 onClick={() => {
                   if (inspectorOpen) {
@@ -5203,6 +5336,19 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setIsSplitView((prev) => !prev)}
+                title={isSplitView ? "Cerrar Vista de Código" : "Ver Código Python Generado en Vivo (Ctrl+\\)"}
+                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
+                  isSplitView
+                    ? "bg-sky-900/60 text-sky-300 border border-sky-500/50 shadow-sm"
+                    : "hover:bg-gray-800 text-sky-400 hover:text-sky-300"
+                }`}
+              >
+                <FileCode size={13} />
+                <span>Code</span>
+              </button>
+
+              <button
                 onClick={() => setShowFaqModal(true)}
                 title="Architecture Guide & FAQ"
                 className="px-2.5 py-1.5 hover:bg-purple-950/70 text-purple-400 hover:text-purple-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
@@ -5221,6 +5367,33 @@ export default function App() {
                   onBlockInspect={handleBlockInspect}
                   onWorkspaceChange={handleWorkspaceChanged}
                 />
+                {/* External Code Modified Alert Banner */}
+                {externalCodeModified && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-amber-950/95 border border-amber-500/80 rounded-xl shadow-2xl backdrop-blur-md text-amber-200 text-xs font-medium">
+                    <AlertTriangle size={15} className="text-amber-400 shrink-0" />
+                    <span>Los archivos de código en disco se han modificado.</span>
+                    <button
+                      onClick={() => {
+                        loadWorkspaceStateJson(externalCodeModified);
+                        setExternalCodeModified(null);
+                        setHasUnsavedChanges(false);
+                        setStatusMessage("✓ Lienzo sincronizado con los archivos en disco");
+                        setTimeout(() => setStatusMessage(""), 3000);
+                      }}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-md font-semibold text-[11px] flex items-center gap-1 transition shadow cursor-pointer"
+                    >
+                      <RefreshCw size={11} />
+                      <span>Recargar en Lienzo</span>
+                    </button>
+                    <button
+                      onClick={() => setExternalCodeModified(null)}
+                      title="Descartar y conservar lienzo actual"
+                      className="p-1 hover:bg-amber-900/60 text-amber-400 hover:text-amber-200 rounded transition cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                )}
                 {/* Plan block counter (display only; the engine enforces the signed limit) */}
                 {(() => {
                   const max = engineStatus.entitlements.max_blocks;
