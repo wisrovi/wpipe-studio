@@ -1709,6 +1709,10 @@ export default function App() {
   // 5. Breakpoints and Step Inspector
   const handleBlockSelected = (blockData: any) => {
     setSelectedBlockData(blockData);
+  };
+
+  const handleBlockInspect = (blockData: any) => {
+    setSelectedBlockData(blockData);
     if (blockData) {
       setInspectorOpen(true);
     }
@@ -5144,6 +5148,26 @@ export default function App() {
               <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
 
               <button
+                onClick={() => setInspectorOpen((prev) => !prev)}
+                title={inspectorOpen ? "Cerrar Inspector" : "Abrir Inspector de Bloque (Click derecho o Doble click en bloque)"}
+                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
+                  inspectorOpen
+                    ? "bg-purple-900/60 text-purple-300 border border-purple-500/50 shadow-sm"
+                    : selectedBlockData
+                      ? "hover:bg-gray-800 text-purple-400 hover:text-purple-300"
+                      : "hover:bg-gray-800 text-gray-400 hover:text-gray-300"
+                }`}
+              >
+                <Sliders size={13} />
+                <span>Inspector</span>
+                {selectedBlockData && (
+                  <span className="text-[10px] px-1 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 max-w-[100px] truncate">
+                    {selectedBlockData.stepName || selectedBlockData.type}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={() => setShowFaqModal(true)}
                 title="Architecture Guide & FAQ"
                 className="px-2.5 py-1.5 hover:bg-purple-950/70 text-purple-400 hover:text-purple-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
@@ -5159,6 +5183,7 @@ export default function App() {
               <div className={`h-full flex flex-col relative ${isSplitView ? "w-1/2 border-r border-[#2d2d2d]" : "w-full flex-1"}`}>
                 <BlocklyComponent
                   onBlockSelected={handleBlockSelected}
+                  onBlockInspect={handleBlockInspect}
                   onWorkspaceChange={handleWorkspaceChanged}
                 />
                 {/* Plan block counter (display only; the engine enforces the signed limit) */}
