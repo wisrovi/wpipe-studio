@@ -1612,6 +1612,8 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const onBlockInspectRef = useRef(onBlockInspect);
   onBlockInspectRef.current = onBlockInspect;
+  const onBlockSelectedRef = useRef(onBlockSelected);
+  onBlockSelectedRef.current = onBlockSelected;
 
   useEffect(() => {
     registerWPipeBlocklyBlocks();
@@ -1753,11 +1755,11 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({
           const selEv = e as any;
           if (selEv.newElementId) {
             const b = ws.getBlockById(selEv.newElementId);
-            if (b && onBlockSelected) {
-              onBlockSelected(getBlockData(b));
+            if (b && onBlockSelectedRef.current) {
+              onBlockSelectedRef.current(getBlockData(b));
             }
-          } else if (onBlockSelected) {
-            onBlockSelected(null);
+          } else if (onBlockSelectedRef.current) {
+            onBlockSelectedRef.current(null);
           }
         }
         if (onWorkspaceChange && !isLoadingWorkspaceState) {
