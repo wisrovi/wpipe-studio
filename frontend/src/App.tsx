@@ -5149,7 +5149,7 @@ export default function App() {
 
               <button
                 onClick={() => setInspectorOpen((prev) => !prev)}
-                title={inspectorOpen ? "Cerrar Inspector" : "Abrir Inspector de Bloque (Click derecho o Doble click en bloque)"}
+                title={inspectorOpen ? "Cerrar Inspector" : "Abrir Inspector de Bloque (o Click derecho en un bloque)"}
                 className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
                   inspectorOpen
                     ? "bg-purple-900/60 text-purple-300 border border-purple-500/50 shadow-sm"
@@ -5255,12 +5255,14 @@ export default function App() {
               )}
 
               {/* Step Property Inspector Drawer */}
-              {inspectorOpen && selectedBlockData && (
-                <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#252526] border-l border-[#333333] shadow-2xl flex flex-col z-20 animate-in slide-in-from-right duration-200">
+              {inspectorOpen && (
+                <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#252526] border-l border-[#333333] shadow-2xl flex flex-col z-20">
                   <div className="h-10 px-3 bg-[#2d2d2d] border-b border-[#333333] flex items-center justify-between text-xs font-semibold text-gray-200 shrink-0">
                     <div className="flex items-center gap-1.5 truncate">
                       <Sliders size={14} className="text-purple-400 shrink-0" />
-                      <span className="truncate">Inspector: {selectedBlockData.stepName || selectedBlockData.type}</span>
+                      <span className="truncate">
+                        {selectedBlockData ? `Inspector: ${selectedBlockData.stepName || selectedBlockData.type}` : "Inspector de Propiedades"}
+                      </span>
                     </div>
                     <button
                       onClick={() => setInspectorOpen(false)}
@@ -5270,74 +5272,84 @@ export default function App() {
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
-                    {/* Breakpoint toggle */}
-                    <div className="p-2.5 rounded-lg bg-[#1e1e1e] border border-[#3c3c3c] flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-3.5 h-3.5 rounded-full border ${
-                            breakpoints.has(selectedBlockData.id) || breakpoints.has(selectedBlockData.stepName)
-                              ? "bg-rose-500 border-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.8)]"
-                              : "bg-gray-800 border-gray-600"
-                          }`}
-                        />
-                        <span className="text-gray-300 font-medium">Breakpoint</span>
-                      </div>
-                      <button
-                        onClick={() => handleToggleBreakpoint(selectedBlockData.id, selectedBlockData.stepName)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                          breakpoints.has(selectedBlockData.id) || breakpoints.has(selectedBlockData.stepName)
-                            ? "bg-rose-900/60 border border-rose-600 text-rose-300 hover:bg-rose-900"
-                            : "bg-[#333333] hover:bg-[#444444] text-gray-300 border border-[#444444]"
-                        }`}
-                      >
-                        {breakpoints.has(selectedBlockData.id) || breakpoints.has(selectedBlockData.stepName) ? "Quitar 🔴" : "Activar ⭕"}
-                      </button>
-                    </div>
-
-                    {/* Metadata & Description */}
-                    <div className="p-2.5 rounded-lg bg-[#1e1e1e] border border-[#3c3c3c] space-y-1.5">
-                      <span className="text-[10px] uppercase font-mono text-gray-400 font-bold">Documentation</span>
-                      <p className="text-gray-300 text-[11px] leading-relaxed">
-                        {catalog.find((s) => s.name === selectedBlockData.stepName)?.description ||
-                          selectedBlockData.description ||
-                          "No description available in step catalog."}
-                      </p>
-                      {catalog.find((s) => s.name === selectedBlockData.stepName)?.repo && (
-                        <div className="text-[10px] text-gray-500 font-mono">
-                          Origen: {catalog.find((s) => s.name === selectedBlockData.stepName)?.repo}
+                  {selectedBlockData ? (
+                    <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+                      {/* Breakpoint toggle */}
+                      <div className="p-2.5 rounded-lg bg-[#1e1e1e] border border-[#3c3c3c] flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full border ${
+                              breakpoints.has(selectedBlockData.id) || breakpoints.has(selectedBlockData.stepName)
+                                ? "bg-rose-500 border-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.8)]"
+                                : "bg-gray-800 border-gray-600"
+                            }`}
+                          />
+                          <span className="text-gray-300 font-medium">Breakpoint</span>
                         </div>
-                      )}
-                    </div>
+                        <button
+                          onClick={() => handleToggleBreakpoint(selectedBlockData.id, selectedBlockData.stepName)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                            breakpoints.has(selectedBlockData.id) || breakpoints.has(selectedBlockData.stepName)
+                              ? "bg-rose-900/60 border border-rose-600 text-rose-300 hover:bg-rose-900"
+                              : "bg-[#333333] hover:bg-[#444444] text-gray-300 border border-[#444444]"
+                          }`}
+                        >
+                          {breakpoints.has(selectedBlockData.id) || breakpoints.has(selectedBlockData.stepName) ? "Quitar 🔴" : "Activar ⭕"}
+                        </button>
+                      </div>
 
-                    {/* Block Fields Editor */}
-                    <div className="space-y-3">
-                      <span className="text-[10px] uppercase font-mono text-gray-400 font-bold">Block Parameters</span>
-                      {selectedBlockData.fields &&
-                        Object.entries(selectedBlockData.fields).map(([fieldName, val]) => (
-                          <div key={fieldName} className="space-y-1">
-                            <label className="text-[11px] font-mono text-sky-400 block">{fieldName}</label>
-                            <input
-                              type="text"
-                              value={String(val ?? "")}
-                              onChange={(e) => {
-                                const newVal = e.target.value;
-                                updateBlockFieldValue(selectedBlockData.id, fieldName, newVal);
-                                setSelectedBlockData((prev: any) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        fields: { ...prev.fields, [fieldName]: newVal },
-                                      }
-                                    : prev
-                                );
-                              }}
-                              className="w-full px-2 py-1.5 bg-[#1e1e1e] border border-[#3c3c3c] rounded text-gray-200 font-mono text-xs focus:outline-none focus:border-sky-500"
-                            />
+                      {/* Metadata & Description */}
+                      <div className="p-2.5 rounded-lg bg-[#1e1e1e] border border-[#3c3c3c] space-y-1.5">
+                        <span className="text-[10px] uppercase font-mono text-gray-400 font-bold">Documentation</span>
+                        <p className="text-gray-300 text-[11px] leading-relaxed">
+                          {catalog.find((s) => s.name === selectedBlockData.stepName)?.description ||
+                            selectedBlockData.description ||
+                            "No description available in step catalog."}
+                        </p>
+                        {catalog.find((s) => s.name === selectedBlockData.stepName)?.repo && (
+                          <div className="text-[10px] text-gray-500 font-mono">
+                            Origen: {catalog.find((s) => s.name === selectedBlockData.stepName)?.repo}
                           </div>
-                        ))}
+                        )}
+                      </div>
+
+                      {/* Block Fields Editor */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] uppercase font-mono text-gray-400 font-bold">Block Parameters</span>
+                        {selectedBlockData.fields &&
+                          Object.entries(selectedBlockData.fields).map(([fieldName, val]) => (
+                            <div key={fieldName} className="space-y-1">
+                              <label className="text-[11px] font-mono text-sky-400 block">{fieldName}</label>
+                              <input
+                                type="text"
+                                value={String(val ?? "")}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  updateBlockFieldValue(selectedBlockData.id, fieldName, newVal);
+                                  setSelectedBlockData((prev: any) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          fields: { ...prev.fields, [fieldName]: newVal },
+                                        }
+                                      : prev
+                                  );
+                                }}
+                                className="w-full px-2 py-1.5 bg-[#1e1e1e] border border-[#3c3c3c] rounded text-gray-200 font-mono text-xs focus:outline-none focus:border-sky-500"
+                              />
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex-1 p-6 flex flex-col items-center justify-center text-center text-gray-400">
+                      <Sliders size={32} className="text-gray-600 mb-3" />
+                      <p className="text-xs font-medium text-gray-300 mb-1">Ningún bloque seleccionado</p>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Haz clic derecho en un bloque del lienzo y selecciona <span className="text-purple-400 font-semibold">Configurar / Inspeccionar</span> para ver y editar sus propiedades.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
