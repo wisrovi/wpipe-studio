@@ -70,18 +70,40 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // 4. Register Commands
   context.subscriptions.push(
-    vscode.commands.registerCommand("wpipe.openCanvas", async () => {
+    vscode.commands.registerCommand("wpipe.openCanvas", async (targetArg?: any) => {
+      let targetDoc: vscode.TextDocument | undefined = undefined;
+      if (targetArg) {
+        if (targetArg instanceof vscode.Uri) {
+          try {
+            targetDoc = await vscode.workspace.openTextDocument(targetArg);
+          } catch {}
+        } else if (typeof targetArg === "object" && targetArg.uri instanceof vscode.Uri) {
+          targetDoc = targetArg as vscode.TextDocument;
+        } else if (typeof targetArg === "string") {
+          try {
+            targetDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(targetArg));
+          } catch {}
+        }
+      }
+      if (!targetDoc && vscode.window.activeTextEditor) {
+        targetDoc = vscode.window.activeTextEditor.document;
+      }
+
+      const panelTitle = targetDoc
+        ? `WPipe Canvas: ${path.basename(targetDoc.fileName)}`
+        : "WPipe Studio — Visual IDE";
+
       const panel = vscode.window.createWebviewPanel(
         "wpipe.fullCanvas",
-        "WPipe Studio — Visual IDE",
-        vscode.ViewColumn.One,
+        panelTitle,
+        targetDoc ? vscode.ViewColumn.Beside : vscode.ViewColumn.One,
         {
           enableScripts: true,
           retainContextWhenHidden: true,
         }
       );
       panel.iconPath = vscode.Uri.file(path.join(context.extensionPath, "media", "icon.svg"));
-      await editorProvider.setupWebview(panel);
+      await editorProvider.setupWebview(panel, targetDoc);
     })
   );
 
@@ -378,7 +400,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerDiagnostics(context);
 
   context.subscriptions.push(
-    vscode.languages.registerCodeLensProvider({ language: "python" }, new WPipeCodeLensProvider()),
+    vscode.languages.registerCodeLensProvider({ language: "python" }, new WPipeCodeLensProvider(ipcClient)),
     vscode.languages.registerHoverProvider({ language: "python" }, new WPipeHoverProvider()),
     vscode.languages.registerCodeActionsProvider({ language: "python" }, new WPipeCodeActionProvider(), {
       providedCodeActionKinds: WPipeCodeActionProvider.providedCodeActionKinds,
@@ -426,10 +448,22 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.executeCommand("wpipeSteps.insertStep", sel.step);
       }
     }),
-    vscode.commands.registerCommand("wpipe-vscode.previewDAG", () => {
-      const editor = vscode.window.activeTextEditor;
-      if (editor) {
-        DAGPanel.createOrShow(context.extensionUri, editor.document);
+    vscode.commands.registerCommand("wpipe-vscode.previewDAG", async (target?: vscode.Uri | vscode.TextDocument) => {
+      let doc: vscode.TextDocument | undefined;
+      if (target) {
+        if ("getText" in target) {
+          doc = target as vscode.TextDocument;
+        } else if ("fsPath" in target) {
+          try {
+            doc = await vscode.workspace.openTextDocument(target as vscode.Uri);
+          } catch {}
+        }
+      }
+      if (!doc) {
+        doc = vscode.window.activeTextEditor?.document;
+      }
+      if (doc) {
+        await DAGPanel.createOrShow(context.extensionUri, doc);
       } else {
         vscode.window.showWarningMessage("Open a Python pipeline file first to preview its DAG.");
       }
