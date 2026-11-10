@@ -129,6 +129,7 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
 
     // 1. Detect when document is saved in THIS VS Code instance
     const pythonWatcher = vscode.workspace.onDidSaveTextDocument(async (doc) => {
+      if (WPipeCanvasEditorProvider.isInternalSyncing) return;
       await handleFileChange(doc.uri);
     });
 
@@ -152,15 +153,25 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
 
     // 3. Detect filesystem modifications from other containers/windows
     const pipelineFsWatcher = vscode.workspace.createFileSystemWatcher("**/app/**/*.py");
-    pipelineFsWatcher.onDidChange((uri) => handleFileChange(uri));
-    pipelineFsWatcher.onDidCreate((uri) => handleFileChange(uri));
+    pipelineFsWatcher.onDidChange((uri) => {
+      if (!WPipeCanvasEditorProvider.isInternalSyncing) handleFileChange(uri);
+    });
+    pipelineFsWatcher.onDidCreate((uri) => {
+      if (!WPipeCanvasEditorProvider.isInternalSyncing) handleFileChange(uri);
+    });
 
     const statesFsWatcher = vscode.workspace.createFileSystemWatcher("**/states/*.py");
-    statesFsWatcher.onDidChange((uri) => handleFileChange(uri));
-    statesFsWatcher.onDidCreate((uri) => handleFileChange(uri));
+    statesFsWatcher.onDidChange((uri) => {
+      if (!WPipeCanvasEditorProvider.isInternalSyncing) handleFileChange(uri);
+    });
+    statesFsWatcher.onDidCreate((uri) => {
+      if (!WPipeCanvasEditorProvider.isInternalSyncing) handleFileChange(uri);
+    });
 
     const wpipeFsWatcher = vscode.workspace.createFileSystemWatcher("**/*.wpipe");
-    wpipeFsWatcher.onDidChange((uri) => handleFileChange(uri));
+    wpipeFsWatcher.onDidChange((uri) => {
+      if (!WPipeCanvasEditorProvider.isInternalSyncing) handleFileChange(uri);
+    });
 
     const customEditorReg = vscode.window.registerCustomEditorProvider(
       WPipeCanvasEditorProvider.viewType,
@@ -192,6 +203,9 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
   }
 
   public async handlePythonCodeChange(pyUriOrDoc: vscode.Uri | vscode.TextDocument): Promise<void> {
+    if (WPipeCanvasEditorProvider.isInternalSyncing) {
+      return;
+    }
     try {
       const uri = (pyUriOrDoc as vscode.TextDocument).uri || (pyUriOrDoc as vscode.Uri);
       let code = "";
@@ -220,9 +234,11 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
       try {
         // 1. Update all open visual canvas panels matching this Python file
         // Note: never skip panels on python code change - python edits are authoritative
-        WPipeCanvasEditorProvider.lastOriginatingPanel = null;
         for (const [docUriStr, entry] of WPipeCanvasEditorProvider.activePanels.entries()) {
           const { panel, document } = entry;
+          if (panel === WPipeCanvasEditorProvider.lastOriginatingPanel) {
+            continue;
+          }
           const docBase = document 
             ? path.basename(document.uri.fsPath, path.extname(document.uri.fsPath))
             : "main_pipeline";
@@ -235,7 +251,7 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
           }
 
           panel.webview.postMessage({
-            type: "update",
+            type: "codeModified",
             data: {
               format: "wpipe",
               project: {
@@ -421,39 +437,52 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
         ? path.basename(document.uri.fsPath, path.extname(document.uri.fsPath))
         : (targetWpipeUri ? path.basename(targetWpipeUri.fsPath, path.extname(targetWpipeUri.fsPath)) : "main_pipeline");
 
-      try {
-        if (wsFolder) {
-          const isPythonDoc = Boolean(document && document.uri.fsPath.endsWith(".py"));
-          const pyUri = isPythonDoc
-            ? document!.uri
-            : (targetWpipeUri
-                ? WPipeCanvasEditorProvider.resolvePythonUriForWpipe(targetWpipeUri, wsFolder.uri)
-                : vscode.Uri.file(path.join(wsFolder.uri.fsPath, "app", "pipelines.py")));
-          try {
-            let pyCode = "";
-            if (isPythonDoc && document) {
-              pyCode = document.getText();
-            } else {
-              const pyBytes = await vscode.workspace.fs.readFile(pyUri);
-              pyCode = Buffer.from(pyBytes).toString("utf8");
-            }
-            if (pyCode && pyCode.trim()) {
-              await WorkspaceIndex.indexWorkspace();
-              const decompiledState = PipelineDecompiler.decompile(pyCode);
-              if (decompiledState) {
-                if (!docContent.format) docContent.format = "wpipe";
-                if (!docContent.project) docContent.project = {};
-                docContent.project.name = docContent.project.name || defaultName;
-                docContent.project.workspace_state = decompiledState;
-                if (!docContent.project.canvas_ir) docContent.project.canvas_ir = {};
-                docContent.project.canvas_ir.workspace_state = decompiledState;
-                docContent.workspace_state = decompiledState;
-                docContent.canvas_ir = { workspace_state: decompiledState };
+      // Check if document already has valid workspace blocks
+      const isPythonDoc = Boolean(document && document.uri.fsPath.endsWith(".py"));
+      const existingState =
+        docContent.project?.workspace_state ||
+        docContent.workspace_state ||
+        docContent.project?.canvas_ir?.workspace_state ||
+        docContent.canvas_ir?.workspace_state;
+
+      const hasExistingBlocks =
+        Boolean(existingState?.blocks?.blocks && Array.isArray(existingState.blocks.blocks) && existingState.blocks.blocks.length > 0);
+
+      // ONLY decompile python file if explicitly opening a python document OR if the document has no blocks at all
+      if (isPythonDoc || !hasExistingBlocks) {
+        try {
+          if (wsFolder) {
+            const pyUri = isPythonDoc
+              ? document!.uri
+              : (targetWpipeUri
+                  ? WPipeCanvasEditorProvider.resolvePythonUriForWpipe(targetWpipeUri, wsFolder.uri)
+                  : vscode.Uri.file(path.join(wsFolder.uri.fsPath, "app", "pipelines.py")));
+            try {
+              let pyCode = "";
+              if (isPythonDoc && document) {
+                pyCode = document.getText();
+              } else {
+                const pyBytes = await vscode.workspace.fs.readFile(pyUri);
+                pyCode = Buffer.from(pyBytes).toString("utf8");
               }
-            }
-          } catch {}
-        }
-      } catch {}
+              if (pyCode && pyCode.trim()) {
+                await WorkspaceIndex.indexWorkspace();
+                const decompiledState = PipelineDecompiler.decompile(pyCode);
+                if (decompiledState) {
+                  if (!docContent.format) docContent.format = "wpipe";
+                  if (!docContent.project) docContent.project = {};
+                  docContent.project.name = docContent.project.name || defaultName;
+                  docContent.project.workspace_state = decompiledState;
+                  if (!docContent.project.canvas_ir) docContent.project.canvas_ir = {};
+                  docContent.project.canvas_ir.workspace_state = decompiledState;
+                  docContent.workspace_state = decompiledState;
+                  docContent.canvas_ir = { workspace_state: decompiledState };
+                }
+              }
+            } catch {}
+          }
+        } catch {}
+      }
 
       // Normalize docContent in all cases so both legacy and standard .wpipe formats are recognized
       if (!docContent.format) docContent.format = "wpipe";
@@ -481,15 +510,10 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
       });
     };
 
-    // Auto re-sync canvas when user switches back to canvas tab after editing Python code
+    // Do NOT re-send initial data on view state changes: retainContextWhenHidden keeps canvas DOM in memory
+    // Re-sending init would overwrite unsaved user blocks and cause race conditions
     webviewPanel.onDidChangeViewState(async (e) => {
-      if (e.webviewPanel.visible) {
-        try {
-          await sendInitialData();
-        } catch (err) {
-          console.warn("Auto-sync error on view state change:", err);
-        }
-      }
+      // Intentionally no-op to preserve in-memory canvas state
     });
 
     sendInitialData();
@@ -511,6 +535,7 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
             : "main_pipeline";
           const projectName = projectObj?.name || defaultName;
           const canvasPayload = projectObj?.canvas_ir || projectObj;
+          const isManual = Boolean(msg.isManualSave);
 
           // 1. Persist the .wpipe file directly to disk
           const defaultWpipePath = wsFolder ? path.join(wsFolder.uri.fsPath, `${projectName}.wpipe`) : undefined;
@@ -542,6 +567,12 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
             }
           }
 
+          if (canvasPayload && typeof canvasPayload === "object") {
+            if (!canvasPayload.workspace_state && saveWsState) {
+              canvasPayload.workspace_state = saveWsState;
+            }
+          }
+
           if (wpipeFileUri) {
             try {
               if (document) {
@@ -563,7 +594,7 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
             }
           }
 
-          // 2. Debounce auto-compilation to app/pipelines.py to avoid interrupting active drag & drop
+          // 2. Debounce auto-compilation to app/pipelines.py (250ms) to ensure instant sync without lagging
           if (wsFolder) {
             const rawNodes = canvasPayload?.nodes || canvasPayload?.project?.canvas_ir?.nodes || [];
             const hasRealNodes = rawNodes.length > 0;
@@ -579,13 +610,17 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
                 clearTimeout(WPipeCanvasEditorProvider.autoCompileDebounceTimer);
               }
 
+              const debounceDelay = isManual ? 0 : 250;
               WPipeCanvasEditorProvider.autoCompileDebounceTimer = setTimeout(async () => {
                 WPipeCanvasEditorProvider.isInternalSyncing = true;
                 try {
                   let existingPyCode = "";
-                  const pyTarget = document 
-                    ? WPipeCanvasEditorProvider.resolvePythonUriForWpipe(document.uri, wsFolder.uri)
-                    : vscode.Uri.file(path.join(wsFolder.uri.fsPath, "app", "pipelines.py"));
+                  const isPythonDoc = Boolean(document && document.uri.fsPath.endsWith(".py"));
+                  const pyTarget = isPythonDoc
+                    ? document!.uri
+                    : (document 
+                        ? WPipeCanvasEditorProvider.resolvePythonUriForWpipe(document.uri, wsFolder.uri)
+                        : vscode.Uri.file(path.join(wsFolder.uri.fsPath, "app", "pipelines.py")));
                   try {
                     const existingBytes = await vscode.workspace.fs.readFile(pyTarget);
                     existingPyCode = Buffer.from(existingBytes).toString("utf8");
@@ -593,14 +628,44 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
 
                   const res = await this.ipcClient.compilePipeline(canvasPayload, projectName, existingPyCode);
                   if (res && res.status === "success" && (res.files_dict || res.files)) {
-                    const filesMap: Record<string, string> = res.files_dict || {};
-                    if (!res.files_dict && Array.isArray(res.files)) {
-                      for (const item of res.files) {
-                        if (item && item.path && item.content) {
-                          filesMap[item.path] = item.content;
+                    let filesMap: Record<string, string> = {};
+                    if (res.files_dict && typeof res.files_dict === "object") {
+                      filesMap = res.files_dict;
+                    } else if (res.files && typeof res.files === "object") {
+                      if (Array.isArray(res.files)) {
+                        for (const item of res.files) {
+                          if (item && item.path && item.content) {
+                            filesMap[item.path] = item.content;
+                          }
+                        }
+                      } else {
+                        filesMap = res.files;
+                      }
+                    }
+
+                    // 1. If document is an open Python file, live-update its buffer immediately
+                    if (document && (document.uri.fsPath === pyTarget.fsPath || isPythonDoc)) {
+                      const pipelineCode =
+                        filesMap["app/pipelines.py"] ||
+                        filesMap["app/pipeline.py"] ||
+                        filesMap[path.basename(pyTarget.fsPath)];
+                      if (pipelineCode && pipelineCode.trim()) {
+                        try {
+                          const edit = new vscode.WorkspaceEdit();
+                          const fullRange = new vscode.Range(
+                            document.positionAt(0),
+                            document.positionAt(document.getText().length)
+                          );
+                          edit.replace(document.uri, fullRange, pipelineCode);
+                          await vscode.workspace.applyEdit(edit);
+                          await document.save();
+                        } catch (docEditErr) {
+                          console.warn("Direct document edit error:", docEditErr);
                         }
                       }
                     }
+
+                    // 2. Persist microservice files into the workspace directory
                     for (const [relPath, content] of Object.entries(filesMap)) {
                       if (typeof content !== "string" || !content.trim()) continue;
 
@@ -615,16 +680,40 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
                       const isTargetPipeline = targetUri.fsPath === pyTarget.fsPath;
                       const isMainPipelineDefault = ["main_pipeline", "pipelines", "main"].includes(projectName) && relPath.endsWith("pipelines.py");
                       const isPipelineFile = isTargetPipeline || isMainPipelineDefault;
-                      const isNewStateFile = relPath.startsWith("app/states/") && !fileAlreadyExists;
+                      const isDerivedFile =
+                        isPipelineFile ||
+                        relPath.startsWith("app/states/") ||
+                        relPath.startsWith("app/dto/") ||
+                        relPath.startsWith("app/test/");
 
-                      // If this is an existing project, only write the active pipeline file or newly created custom state files
-                      // Do not overwrite user-customized infrastructure files (settings, main, Dockerfile) unless brand new project
-                      if (isPipelineFile || isNewStateFile || !fileAlreadyExists) {
+                      // Write derived pipeline/state/dto/test files or any missing project infrastructure files
+                      if (isDerivedFile || !fileAlreadyExists) {
                         await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(targetUri.fsPath)));
                         await vscode.workspace.fs.writeFile(targetUri, Buffer.from(content as string, "utf8"));
+
+                        // Also live-update any currently open editor tabs in VS Code for targetUri
+                        for (const openDoc of vscode.workspace.textDocuments) {
+                          if (openDoc.uri.fsPath === targetUri.fsPath && !openDoc.isClosed) {
+                            const currentText = openDoc.getText();
+                            if (currentText !== content) {
+                              try {
+                                const edit = new vscode.WorkspaceEdit();
+                                const fullRange = new vscode.Range(
+                                  openDoc.positionAt(0),
+                                  openDoc.positionAt(currentText.length)
+                                );
+                                edit.replace(openDoc.uri, fullRange, content as string);
+                                await vscode.workspace.applyEdit(edit);
+                              } catch {}
+                            }
+                          }
+                        }
                       }
                     }
                     await vscode.commands.executeCommand("wpipeSteps.refreshEntry");
+                    if (isManual) {
+                      vscode.window.showInformationMessage(`💾 Pipeline guardado y microservicio compilado (${projectName})`);
+                    }
                   }
                 } catch (err) {
                   console.warn("Auto-compile on saveCanvas:", err);
@@ -632,9 +721,9 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
                   setTimeout(() => {
                     WPipeCanvasEditorProvider.isInternalSyncing = false;
                     WPipeCanvasEditorProvider.lastOriginatingPanel = null;
-                  }, 1000);
+                  }, 1500);
                 }
-              }, 1200);
+              }, debounceDelay);
             }
           }
           break;
