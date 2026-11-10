@@ -1600,14 +1600,39 @@ ${mermaidDag}
 interface BlocklyWorkspaceProps {
   onWorkspaceChange?: (workspace: Blockly.WorkspaceSvg, isUserEvent?: boolean) => void;
   onBlockSelected?: (blockData: any) => void;
+  onBlockInspect?: (blockData: any) => void;
 }
 
-export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, onBlockSelected }) => {
+export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({
+  onWorkspaceChange,
+  onBlockSelected,
+  onBlockInspect,
+}) => {
   const blocklyDivRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  const onBlockInspectRef = useRef(onBlockInspect);
+  onBlockInspectRef.current = onBlockInspect;
 
   useEffect(() => {
     registerWPipeBlocklyBlocks();
+
+    // Register custom context menu option for inspecting a block on right-click
+    const registry = Blockly.ContextMenuRegistry.registry;
+    const inspectItemId = "wpipe_inspect_block_option";
+    if (!registry.getItem(inspectItemId)) {
+      registry.register({
+        displayText: () => "🔍 Configurar / Inspeccionar Bloque",
+        preconditionFn: (scope: any) => (scope.block ? "enabled" : "hidden"),
+        callback: (scope: any) => {
+          if (scope.block && onBlockInspectRef.current) {
+            onBlockInspectRef.current(getBlockData(scope.block));
+          }
+        },
+        scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
+        id: inspectItemId,
+        weight: 0,
+      });
+    }
 
     if (blocklyDivRef.current && !workspaceRef.current) {
       const ws = Blockly.inject(blocklyDivRef.current, {
@@ -1754,6 +1779,21 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceC
       }
     };
 
+    // Allow double-clicking any block to inspect and configure it
+    const handleDblClick = () => {
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const selected = Blockly.getSelected();
+      if (selected && selected instanceof Blockly.BlockSvg && onBlockInspectRef.current) {
+        onBlockInspectRef.current(getBlockData(selected));
+      }
+    };
+
+    const div = blocklyDivRef.current;
+    if (div) {
+      div.addEventListener("dblclick", handleDblClick);
+    }
+
     if (blocklyDivRef.current) {
       resizeObserver = new ResizeObserver(() => {
         handleResize();
@@ -1763,6 +1803,9 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceC
     window.addEventListener("resize", handleResize);
 
     return () => {
+      if (div) {
+        div.removeEventListener("dblclick", handleDblClick);
+      }
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
