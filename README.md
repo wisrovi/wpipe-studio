@@ -63,6 +63,9 @@ WPipe Studio features an integrated **VS Code-inspired** workspace:
    - Infinite pan and zoom canvas with DOM permanence (retains blocks across tab switches).
    - Free canvas drag (`move.drag`), individual block collapse (`[-]` / `[+]`), and floating toolbar (Center, Fit, Collapse All, Expand All, Undo, Clear, Guide).
    - Non-intrusive step configuration & inspector: opens intentionally via right-click context menu (`🔍 Configurar / Inspeccionar Bloque`), double-click, or dedicated toolbar `Inspector` toggle without interrupting visual drag & drop layout workflows.
+   - **Explicit Save & Dirty State Indicator**: Floating toolbar `Guardar (Ctrl+S)` button with reactive dirty state tracking (`Guardar ●` when changes are pending, `Guardado ✓` when synchronized). Supports standard `Ctrl+S` / `Cmd+S` keyboard shortcuts.
+   - **Configurable Auto-Save Switch**: Toggleable `Auto: OFF` (default manual mode) / `Auto: ON` button allowing developers complete control over when compilation and file generation occur.
+   - **Non-Destructive Conflict Resolution**: External modifications to Python microservice code files on disk trigger a safe notification banner (`⚠️ Los archivos de código en disco se han modificado`) with an explicit `[Recargar en Lienzo]` button, preventing accidental overwrites or loss of canvas work.
    - Real-world control C-blocks: `Condition` (single & dual branch), `For` (N iterations), `While` (conditional loops), `Parallel` (concurrent branches with `accumulate` merge policy), and `Background` (non-blocking async tasks).
 5. **Interactive Simulation & Debugging Stage**:
    - Fullscreen sandbox with Green Flag (`🏁`) start, Red Stop (`🛑`), and Reset controls.
