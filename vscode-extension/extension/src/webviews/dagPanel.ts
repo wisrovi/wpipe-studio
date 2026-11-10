@@ -6,6 +6,7 @@ import { ConfigManager } from '../core/config';
 export class DAGPanel {
     public static currentPanel: DAGPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
+    private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _isDisposed: boolean = false;
 
@@ -17,9 +18,10 @@ export class DAGPanel {
         }
         const p = vscode.window.createWebviewPanel('wpipeDAG', 'WPipe Analysis', vscode.ViewColumn.Two, { 
             enableScripts: true,
-            retainContextWhenHidden: true
+            retainContextWhenHidden: true,
+            localResourceRoots: [vscode.Uri.joinPath(uri, 'media')]
         });
-        DAGPanel.currentPanel = new DAGPanel(p, doc);
+        DAGPanel.currentPanel = new DAGPanel(p, doc, uri);
     }
 
     public highlightNodes(nodeNames: string[], status: 'error' | 'success' | 'running') {
@@ -53,8 +55,9 @@ export class DAGPanel {
         }
     }
 
-    private constructor(p: vscode.WebviewPanel, doc: vscode.TextDocument) {
+    private constructor(p: vscode.WebviewPanel, doc: vscode.TextDocument, extensionUri: vscode.Uri) {
         this._panel = p;
+        this._extensionUri = extensionUri;
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         
         // Inicialización
@@ -161,12 +164,17 @@ export class DAGPanel {
         }, null, this._disposables);
     }
 
-    public async updateContent(fileName: string, content: string, forceBackup: boolean = false) {
+    public async updateContent(fileName: string, content: string, forceBackup: boolean = false, highlightStep?: string) {
         if (this._isDisposed) return;
         const res = this.parseString(content, fileName);
         if (this._isDisposed) return;
         try {
             this._panel.webview.html = this._getHtml(fileName, res.graph, res.stats, res.bigO, res.suggestions);
+            if (highlightStep) {
+                setTimeout(() => {
+                    this.highlightNodes([highlightStep], 'running');
+                }, 400);
+            }
         } catch {}
     }
 
@@ -180,7 +188,40 @@ export class DAGPanel {
             text = doc.getText();
         }
         if (this._isDisposed) return;
-        await this.updateContent(path.basename(doc.fileName), text, forceBackup);
+
+        let displayFileName = path.basename(doc.fileName);
+        let highlightStep: string | undefined;
+
+        // If this document is a state/step file without pipeline definitions, find the workspace pipelines.py
+        const hasPipelineDef = /(?:set_steps|steps)\s*\(\s*\[|steps\s*=\s*\[/.test(text);
+        if (!hasPipelineDef) {
+            const classMatch = text.match(/class\s+([A-Za-z0-9_]+Step|[A-Za-z0-9_]+State|[A-Za-z0-9_]+)\b/);
+            if (classMatch) {
+                highlightStep = classMatch[1];
+            }
+
+            const candidates = [
+                path.join(path.dirname(doc.uri.fsPath), "..", "pipelines.py"),
+                path.join(path.dirname(doc.uri.fsPath), "pipelines.py"),
+            ];
+            const wsFolder = vscode.workspace.getWorkspaceFolder(doc.uri);
+            if (wsFolder) {
+                candidates.push(path.join(wsFolder.uri.fsPath, "app", "pipelines.py"));
+                candidates.push(path.join(wsFolder.uri.fsPath, "pipelines.py"));
+            }
+
+            for (const cand of candidates) {
+                try {
+                    const candUri = vscode.Uri.file(cand);
+                    const candBytes = await vscode.workspace.fs.readFile(candUri);
+                    text = Buffer.from(candBytes).toString("utf8");
+                    displayFileName = `${path.basename(cand)} (${highlightStep || path.basename(doc.fileName)})`;
+                    break;
+                } catch {}
+            }
+        }
+
+        await this.updateContent(displayFileName, text, forceBackup, highlightStep);
     }
 
     public parseString(text: string, fileName: string) {
@@ -398,14 +439,24 @@ export class DAGPanel {
     }
 
     private _getHtml(fileName: string, mermaidGraph: string, stats: any, bigO: string, suggestions: string[]) {
+        const cspSource = this._panel.webview.cspSource;
+        const mermaidLocalUri = this._panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'media', 'mermaid.min.js')
+        );
+
         return `<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: http://localhost:* http://127.0.0.1:*; script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https:; font-src https: data:; connect-src http://localhost:* http://127.0.0.1:* https://cdn.jsdelivr.net ws: wss:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: http://localhost:* http://127.0.0.1:*; script-src 'unsafe-inline' 'unsafe-eval' ${cspSource} https://cdn.jsdelivr.net; style-src 'unsafe-inline' https:; font-src https: data:; connect-src http://localhost:* http://127.0.0.1:* https://cdn.jsdelivr.net ws: wss:;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WPipe DAG - ${fileName}</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="${mermaidLocalUri}"></script>
+    <script>
+        if (typeof mermaid === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"><\\/script>');
+        }
+    </script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -554,19 +605,41 @@ ${mermaidGraph}
     ` : ''}
 
     <script>
-        mermaid.initialize({
-            startOnLoad: true,
-            theme: 'dark',
-            securityLevel: 'loose',
-            themeVariables: {
-                darkMode: true,
-                background: '#0f172a',
-                primaryColor: '#1e293b',
-                primaryTextColor: '#f8fafc',
-                primaryBorderColor: '#334155',
-                lineColor: '#64748b'
+        if (typeof mermaid !== 'undefined') {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                securityLevel: 'loose',
+                themeVariables: {
+                    darkMode: true,
+                    background: '#0f172a',
+                    primaryColor: '#1e293b',
+                    primaryTextColor: '#f8fafc',
+                    primaryBorderColor: '#334155',
+                    lineColor: '#64748b'
+                }
+            });
+
+            async function renderMermaid() {
+                const el = document.querySelector('.mermaid');
+                if (!el || !window.mermaid) return;
+                try {
+                    await mermaid.run({ nodes: [el] });
+                } catch (e) {
+                    try {
+                        mermaid.init(undefined, el);
+                    } catch (e2) {
+                        console.error("Mermaid render error:", e2);
+                    }
+                }
             }
-        });
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', renderMermaid);
+            } else {
+                renderMermaid();
+            }
+        }
 
         const vscode = acquireVsCodeApi();
 
