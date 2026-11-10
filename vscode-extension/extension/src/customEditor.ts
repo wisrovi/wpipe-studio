@@ -343,6 +343,32 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
       });
     }
 
+    if (document && document.fileName.endsWith(".py")) {
+      const pyChangeSub = vscode.workspace.onDidChangeTextDocument((e) => {
+        if (WPipeCanvasEditorProvider.isInternalSyncing) return;
+        if (e.document.uri.toString() === document.uri.toString()) {
+          try {
+            const decompiledState = PipelineDecompiler.decompile(e.document.getText());
+            if (decompiledState) {
+              const name = path.basename(document.fileName, path.extname(document.fileName));
+              webviewPanel.webview.postMessage({
+                type: "update",
+                data: {
+                  format: "wpipe",
+                  workspace_state: decompiledState,
+                  project: {
+                    name,
+                    workspace_state: decompiledState,
+                  },
+                },
+              });
+            }
+          } catch {}
+        }
+      });
+      webviewPanel.onDidDispose(() => pyChangeSub.dispose());
+    }
+
     webviewPanel.webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -390,19 +416,27 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
         }
       }
 
-      // Always ensure workspace_state reflects current app/pipelines.py if present
+      // Always ensure workspace_state reflects current app/pipelines.py or target python file if present
       const defaultName = document
         ? path.basename(document.uri.fsPath, path.extname(document.uri.fsPath))
         : (targetWpipeUri ? path.basename(targetWpipeUri.fsPath, path.extname(targetWpipeUri.fsPath)) : "main_pipeline");
 
       try {
         if (wsFolder) {
-          const pyUri = targetWpipeUri
-            ? WPipeCanvasEditorProvider.resolvePythonUriForWpipe(targetWpipeUri, wsFolder.uri)
-            : vscode.Uri.file(path.join(wsFolder.uri.fsPath, "app", "pipelines.py"));
+          const isPythonDoc = Boolean(document && document.uri.fsPath.endsWith(".py"));
+          const pyUri = isPythonDoc
+            ? document!.uri
+            : (targetWpipeUri
+                ? WPipeCanvasEditorProvider.resolvePythonUriForWpipe(targetWpipeUri, wsFolder.uri)
+                : vscode.Uri.file(path.join(wsFolder.uri.fsPath, "app", "pipelines.py")));
           try {
-            const pyBytes = await vscode.workspace.fs.readFile(pyUri);
-            const pyCode = Buffer.from(pyBytes).toString("utf8");
+            let pyCode = "";
+            if (isPythonDoc && document) {
+              pyCode = document.getText();
+            } else {
+              const pyBytes = await vscode.workspace.fs.readFile(pyUri);
+              pyCode = Buffer.from(pyBytes).toString("utf8");
+            }
             if (pyCode && pyCode.trim()) {
               await WorkspaceIndex.indexWorkspace();
               const decompiledState = PipelineDecompiler.decompile(pyCode);
