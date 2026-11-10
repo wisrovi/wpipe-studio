@@ -1779,21 +1779,6 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({
       }
     };
 
-    // Allow double-clicking any block to inspect and configure it
-    const handleDblClick = () => {
-      const ws = workspaceRef.current;
-      if (!ws) return;
-      const selected = Blockly.getSelected();
-      if (selected && selected instanceof Blockly.BlockSvg && onBlockInspectRef.current) {
-        onBlockInspectRef.current(getBlockData(selected));
-      }
-    };
-
-    const div = blocklyDivRef.current;
-    if (div) {
-      div.addEventListener("dblclick", handleDblClick);
-    }
-
     if (blocklyDivRef.current) {
       resizeObserver = new ResizeObserver(() => {
         handleResize();
@@ -1803,9 +1788,6 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({
     window.addEventListener("resize", handleResize);
 
     return () => {
-      if (div) {
-        div.removeEventListener("dblclick", handleDblClick);
-      }
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
