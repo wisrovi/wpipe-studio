@@ -585,10 +585,170 @@ const PRO_BLOCK_ENTITLEMENT: Record<string, keyof CanvasLimits> = {
 
 export function setCanvasLimits(limits: CanvasLimits) {
   canvasLimits = { ...limits };
+  if (activeWorkspaceRef) {
+    debouncedUpdateQuotaBadges(activeWorkspaceRef);
+  }
 }
 
 export function setCanvasLimitViolationHandler(handler: ((v: CanvasLimitViolation) => void) | null) {
   limitViolationHandler = handler;
+}
+
+let quotaBadgesTimer: any = null;
+
+export function updateWorkspaceQuotaBadges(ws: Blockly.WorkspaceSvg | null) {
+  if (!ws) return;
+  const isPro = canvasLimits.max_blocks === null;
+  const max = canvasLimits.max_blocks ?? 5;
+  const allBlocks = ws.getAllBlocks(false);
+
+  // Find sequential order by traversing top blocks down connections
+  const orderedBlocks: Blockly.BlockSvg[] = [];
+  const visited = new Set<string>();
+
+  const topBlocks = ws.getTopBlocks(true);
+  for (const tb of topBlocks) {
+    let curr: Blockly.Block | null = tb;
+    while (curr) {
+      if (!visited.has(curr.id)) {
+        visited.add(curr.id);
+        orderedBlocks.push(curr as Blockly.BlockSvg);
+      }
+      // Check child inputs (e.g. IF / ELSE / FOR body)
+      for (const input of curr.inputList) {
+        if (input.connection && input.connection.targetBlock()) {
+          const child = input.connection.targetBlock();
+          let cCurr: Blockly.Block | null = child;
+          while (cCurr) {
+            if (!visited.has(cCurr.id)) {
+              visited.add(cCurr.id);
+              orderedBlocks.push(cCurr as Blockly.BlockSvg);
+            }
+            cCurr = cCurr.nextConnection && cCurr.nextConnection.targetBlock();
+          }
+        }
+      }
+      curr = curr.nextConnection && curr.nextConnection.targetBlock();
+    }
+  }
+
+  // Any remaining disconnected blocks
+  for (const b of allBlocks) {
+    if (!visited.has(b.id)) {
+      visited.add(b.id);
+      orderedBlocks.push(b as Blockly.BlockSvg);
+    }
+  }
+
+  // Now apply or clear warnings & badges & CSS classes on each block
+  orderedBlocks.forEach((block, idx) => {
+    const blockNum = idx + 1;
+    const isProFeature = isProBlockType(block.type);
+    const isOverLimit = !isPro && blockNum > max;
+
+    const svgRoot = typeof block.getSvgRoot === "function" ? (block.getSvgRoot() as SVGElement) : null;
+
+    if (!isPro && isProFeature) {
+      try {
+        block.setWarningText(`🔒 PRO: El bloque '${block.type}' es exclusivo de WPipe Pro.`);
+        if (typeof (block as any).setDisabledReason === "function") {
+          (block as any).setDisabledReason(true, "PRO_LOCKED");
+        } else if (typeof (block as any).setEnabled === "function") {
+          (block as any).setEnabled(false);
+        }
+      } catch {}
+      if (svgRoot) {
+        svgRoot.classList.add("blockly-pro-locked");
+        applyProSvgBadge(svgRoot, block, "🔒 PRO");
+      }
+    } else if (!isPro && isOverLimit) {
+      try {
+        block.setWarningText(`🔒 PRO (Bloque #${blockNum} / máx ${max}): Supera la cuota del Plan Free. Requiere WPipe Pro.`);
+        if (typeof (block as any).setDisabledReason === "function") {
+          (block as any).setDisabledReason(true, "PRO_LOCKED");
+        } else if (typeof (block as any).setEnabled === "function") {
+          (block as any).setEnabled(false);
+        }
+      } catch {}
+      if (svgRoot) {
+        svgRoot.classList.add("blockly-pro-locked");
+        applyProSvgBadge(svgRoot, block, "🔒 PRO");
+      }
+    } else {
+      try {
+        block.setWarningText(null);
+        if (typeof (block as any).setDisabledReason === "function") {
+          (block as any).setDisabledReason(false, "PRO_LOCKED");
+        } else if (typeof (block as any).setEnabled === "function") {
+          (block as any).setEnabled(true);
+        }
+      } catch {}
+      if (svgRoot) {
+        svgRoot.classList.remove("blockly-pro-locked");
+        removeProSvgBadge(svgRoot);
+      }
+    }
+  });
+}
+
+function applyProSvgBadge(svgRoot: SVGElement, block: Blockly.BlockSvg, label: string) {
+  let proTag = svgRoot.querySelector(".wpipe-pro-badge") as SVGGElement | null;
+  if (!proTag) {
+    proTag = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    proTag.setAttribute("class", "wpipe-pro-badge");
+    proTag.style.cursor = "pointer";
+
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("rx", "4");
+    rect.setAttribute("ry", "4");
+    rect.setAttribute("fill", "#f59e0b");
+    rect.setAttribute("stroke", "#b45309");
+    rect.setAttribute("stroke-width", "1");
+    rect.setAttribute("height", "18");
+    rect.setAttribute("width", "50");
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", "25");
+    text.setAttribute("y", "13");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("fill", "#000000");
+    text.setAttribute("font-size", "10px");
+    text.setAttribute("font-weight", "900");
+    text.setAttribute("font-family", "system-ui, sans-serif");
+    text.textContent = label;
+
+    proTag.appendChild(rect);
+    proTag.appendChild(text);
+    svgRoot.appendChild(proTag);
+
+    proTag.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (limitViolationHandler) {
+        limitViolationHandler({
+          code: "LIMIT_BLOCK_COUNT_EXCEEDED",
+          blockType: block.type,
+          current: getWorkspaceBlockCount(),
+          max: canvasLimits.max_blocks,
+        });
+      }
+    });
+  }
+
+  const hw = typeof (block as any).getHeightWidth === "function" ? (block as any).getHeightWidth() : { width: 220 };
+  proTag.setAttribute("transform", `translate(${Math.max(160, hw.width - 55)}, -8)`);
+}
+
+function removeProSvgBadge(svgRoot: SVGElement) {
+  const proTag = svgRoot.querySelector(".wpipe-pro-badge");
+  if (proTag) proTag.remove();
+}
+
+export function debouncedUpdateQuotaBadges(ws: Blockly.WorkspaceSvg | null) {
+  if (!ws) return;
+  if (quotaBadgesTimer) clearTimeout(quotaBadgesTimer);
+  quotaBadgesTimer = setTimeout(() => {
+    updateWorkspaceQuotaBadges(ws);
+  }, 60);
 }
 
 export function getWorkspaceBlockCount(): number {
@@ -859,6 +1019,7 @@ export function loadWorkspaceStateJson(state: any): boolean {
     setTimeout(() => {
       if (activeWorkspaceRef) {
         activeWorkspaceRef.scrollCenter();
+        debouncedUpdateQuotaBadges(activeWorkspaceRef);
       }
     }, 100);
     return true;
@@ -1766,6 +1927,7 @@ export const BlocklyComponent: React.FC<BlocklyWorkspaceProps> = ({
           const isUser = !!e && !(e as any).isUiEvent && ((e as any).recordUndo !== false);
           onWorkspaceChange(ws, isUser);
         }
+        debouncedUpdateQuotaBadges(ws);
       });
     }
 
