@@ -678,10 +678,14 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
 
                       // Determine if this file should be written during canvas auto-compilation
                       const isTargetPipeline = targetUri.fsPath === pyTarget.fsPath;
-                      const isMainPipelineDefault = ["main_pipeline", "pipelines", "main"].includes(projectName) && relPath.endsWith("pipelines.py");
+                      const isMainPipelineDefault = ["main_pipeline", "pipelines", "main", "pipeline"].includes(projectName) && relPath.endsWith("pipelines.py");
                       const isPipelineFile = isTargetPipeline || isMainPipelineDefault;
                       const isDerivedFile =
                         isPipelineFile ||
+                        relPath === "app/main.py" ||
+                        relPath === "requirements.txt" ||
+                        relPath === "app/config/config.yaml" ||
+                        relPath === "app/config/settings.py" ||
                         relPath.startsWith("app/states/") ||
                         relPath.startsWith("app/dto/") ||
                         relPath.startsWith("app/test/");
