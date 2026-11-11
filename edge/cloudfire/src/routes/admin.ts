@@ -7,6 +7,125 @@
 
 import { Env } from "./activate";
 
+function base64UrlEncode(str: string): string {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function base64UrlDecode(str: string): string {
+  let output = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (output.length % 4) output += "=";
+  return decodeURIComponent(escape(atob(output)));
+}
+
+async function hashCode(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function generate6DigitOtp(): string {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  const code = 100000 + (buf[0] % 900000);
+  return code.toString();
+}
+
+async function createSuperAdminJwt(email: string, masterKey: string): Promise<string> {
+  const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const exp = Math.floor(Date.now() / 1000) + 86400; // 24 hours
+  const payload = base64UrlEncode(JSON.stringify({ email: email.toLowerCase(), role: "superadmin", exp }));
+  const dataToSign = `${header}.${payload}`;
+
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(masterKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, enc.encode(dataToSign));
+  const sigStr = Array.from(new Uint8Array(signature))
+    .map((b) => String.fromCharCode(b))
+    .join("");
+  const b64Signature = btoa(sigStr).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return `${dataToSign}.${b64Signature}`;
+}
+
+async function verifySuperAdminJwt(token: string, masterKey: string): Promise<boolean> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const dataToSign = `${headerB64}.${payloadB64}`;
+
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(masterKey),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    let sigStr = atob(sigB64.replace(/-/g, "+").replace(/_/g, "/"));
+    const sigBytes = new Uint8Array(sigStr.length);
+    for (let i = 0; i < sigStr.length; i++) sigBytes[i] = sigStr.charCodeAt(i);
+
+    const valid = await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(dataToSign));
+    if (!valid) return false;
+
+    const payload = JSON.parse(base64UrlDecode(payloadB64));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return false;
+    if (payload.role !== "superadmin") return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function sendSuperAdminEmail(code: string, resendApiKey?: string): Promise<{ success: boolean; reason?: string }> {
+  if (!resendApiKey) return { success: false, reason: "NO_RESEND_API_KEY" };
+  const targetEmail = "wisrovi.rodriguez@gmail.com";
+  const senders = ["WPipe Studio Security <security@wisrovi.dev>", "WPipe Studio <onboarding@resend.dev>"];
+
+  for (const from of senders) {
+    try {
+      const resp = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: [targetEmail],
+          subject: "🛡️ Código de Autenticación Super-Admin — WPipe Studio",
+          html: `<div style="font-family: system-ui, -apple-system, sans-serif; max-width: 500px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 16px; padding: 32px; border: 1px solid #334155;">
+            <h2 style="color: #6366f1; margin-top: 0;">🛡️ WPipe Studio — Super-Admin</h2>
+            <p style="color: #94a3b8; font-size: 14px;">Has solicitado acceso a la consola de administración soberana (admin.wisrovi.dev). Tu código de un solo uso es:</p>
+            <div style="background: #1e293b; border: 2px dashed #6366f1; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+              <span style="font-family: monospace; font-size: 34px; font-weight: 800; letter-spacing: 6px; color: #38bdf8;">${code}</span>
+            </div>
+            <p style="color: #64748b; font-size: 12px; line-height: 1.5;">Válido durante 10 minutos. No compartas este código con nadie.</p>
+            <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+            <p style="color: #475569; font-size: 11px; text-align: center;">WPipe Studio Authority &copy; 2026 wisrovi.dev</p>
+          </div>`,
+        }),
+      });
+      if (resp.ok) return { success: true };
+    } catch (e) {}
+  }
+  return { success: false, reason: "EMAIL_FAILED" };
+}
+
+
 function constantTimeEquals(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let result = 0;
@@ -16,7 +135,7 @@ function constantTimeEquals(a: string, b: string): boolean {
   return result === 0;
 }
 
-function isAuthorizedAdmin(request: Request, env: Env): boolean {
+async function isAuthorizedAdmin(request: Request, env: Env): Promise<boolean> {
   const masterKey = env.ADMIN_MASTER_KEY?.trim();
   if (!masterKey) return false;
 
@@ -24,6 +143,8 @@ function isAuthorizedAdmin(request: Request, env: Env): boolean {
   if (auth && auth.startsWith("Bearer ")) {
     const token = auth.slice(7).trim();
     if (constantTimeEquals(token, masterKey)) return true;
+    const isJwtValid = await verifySuperAdminJwt(token, masterKey);
+    if (isJwtValid) return true;
   }
   const headerKey = request.headers.get("x-admin-key");
   if (headerKey && constantTimeEquals(headerKey.trim(), masterKey)) return true;
@@ -34,7 +155,116 @@ export async function handleAdmin(request: Request, env: Env, url: URL): Promise
   const path = url.pathname;
   const masterKey = env.ADMIN_MASTER_KEY?.trim();
 
-  // 0. POST /v1/admin/auth/verify (Validate Master Key)
+  // 0.1 POST /v1/admin/auth/send-otp (Send OTP to Official Email)
+  if (path === "/v1/admin/auth/send-otp" && request.method === "POST") {
+    let body: any = {};
+    try { body = await request.json(); } catch {}
+    const providedKey = (body.master_key || "").trim();
+
+    if (!masterKey || !providedKey || !constantTimeEquals(providedKey, masterKey)) {
+      return new Response(
+        JSON.stringify({ error: "INVALID_MASTER_KEY", message: "Clave maestra no válida." }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const email = "wisrovi.rodriguez@gmail.com";
+    const code = generate6DigitOtp();
+    const codeHash = await hashCode(code);
+    const otpId = `otp_admin_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+
+    await env.DB.prepare(
+      `INSERT INTO otp_codes (id, email, code_hash, attempts, expires_at, used, created_at)
+       VALUES (?, ?, ?, 0, datetime('now', '+10 minutes'), 0, datetime('now'))`
+    ).bind(otpId, email, codeHash).run();
+
+    const emailResult = await sendSuperAdminEmail(code, (env as any).RESEND_API_KEY);
+
+    return new Response(
+      JSON.stringify({
+        status: "success",
+        message: "Código de seguridad de 6 dígitos enviado a tu correo.",
+        masked_email: "wi********@gmail.com",
+        delivery: emailResult.success ? "sent" : "dev_fallback",
+        dev_code: emailResult.success ? undefined : code,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // 0.2 POST /v1/admin/auth/verify-otp (Verify OTP & Issue Session JWT)
+  if (path === "/v1/admin/auth/verify-otp" && request.method === "POST") {
+    let body: any = {};
+    try { body = await request.json(); } catch {}
+    const providedKey = (body.master_key || "").trim();
+    const providedCode = (body.otp_code || "").trim();
+
+    if (!masterKey || !providedKey || !constantTimeEquals(providedKey, masterKey)) {
+      return new Response(
+        JSON.stringify({ error: "INVALID_MASTER_KEY", message: "Clave maestra no válida." }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!providedCode || providedCode.length !== 6) {
+      return new Response(
+        JSON.stringify({ error: "INVALID_CODE", message: "El código debe tener 6 dígitos." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const email = "wisrovi.rodriguez@gmail.com";
+    const codeHash = await hashCode(providedCode);
+
+    const record: any = await env.DB.prepare(
+      `SELECT id, code_hash, attempts, expires_at, used
+       FROM otp_codes
+       WHERE email = ? AND used = 0
+       ORDER BY created_at DESC
+       LIMIT 1`
+    ).bind(email).first();
+
+    if (!record) {
+      return new Response(
+        JSON.stringify({ error: "CODE_NOT_FOUND", message: "No hay ningún código pendiente o ha expirado." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+      return new Response(
+        JSON.stringify({ error: "CODE_EXPIRED", message: "El código ha expirado. Solicita uno nuevo." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (record.code_hash !== codeHash) {
+      await env.DB.prepare("UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?").bind(record.id).run();
+      return new Response(
+        JSON.stringify({ error: "CODE_MISMATCH", message: "Código de verificación incorrecto." }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    await env.DB.prepare("UPDATE otp_codes SET used = 1 WHERE id = ?").bind(record.id).run();
+
+    const sessionToken = await createSuperAdminJwt(email, masterKey);
+
+    return new Response(
+      JSON.stringify({
+        status: "success",
+        authorized: true,
+        session_token: sessionToken,
+        admin_name: "William Rodriguez",
+        email: email,
+        role: "Super-Admin",
+        timestamp: new Date().toISOString(),
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // 0.3 POST /v1/admin/auth/verify (Legacy / Session Check)
   if (path === "/v1/admin/auth/verify" && request.method === "POST") {
     if (!masterKey) {
       return new Response(
@@ -44,12 +274,11 @@ export async function handleAdmin(request: Request, env: Env, url: URL): Promise
     }
 
     let body: any = {};
-    try {
-      body = await request.json();
-    } catch {}
+    try { body = await request.json(); } catch {}
+    const providedKey = (body.master_key || body.key || body.token || "").trim();
+    const authorized = (providedKey && constantTimeEquals(providedKey, masterKey)) || (providedKey && await verifySuperAdminJwt(providedKey, masterKey)) || await isAuthorizedAdmin(request, env);
 
-    const providedKey = (body.master_key || body.key || "").trim();
-    if ((providedKey && constantTimeEquals(providedKey, masterKey)) || isAuthorizedAdmin(request, env)) {
+    if (authorized) {
       return new Response(
         JSON.stringify({
           status: "success",
@@ -63,12 +292,13 @@ export async function handleAdmin(request: Request, env: Env, url: URL): Promise
     }
 
     return new Response(
-      JSON.stringify({ error: "INVALID_MASTER_KEY", message: "Contraseña maestra de Super-Admin no válida." }),
+      JSON.stringify({ error: "UNAUTHORIZED", message: "Sesión o credencial de Super-Admin no válida." }),
       { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
 
-  if (!isAuthorizedAdmin(request, env)) {
+  const isAuth = await isAuthorizedAdmin(request, env);
+  if (!isAuth) {
     return new Response(
       JSON.stringify({ error: "FORBIDDEN", message: "Acceso no autorizado al panel Super-Admin." }),
       { status: 403, headers: { "Content-Type": "application/json" } }

@@ -93,7 +93,11 @@ interface TableSchemaInfo {
 }
 
 export default function App() {
-  const [masterKey, setMasterKey] = useState<string>(() => localStorage.getItem("wpipe_admin_master_token") || "");
+  const [masterKey, setMasterKey] = useState<string>("");
+  const [otpCode, setOtpCode] = useState<string>("");
+  const [authStep, setAuthStep] = useState<"key" | "otp">("key");
+  const [otpInfo, setOtpInfo] = useState<{ message: string; masked_email: string; dev_code?: string } | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>(() => localStorage.getItem("wpipe_admin_session_jwt") || "");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"overview" | "licenses" | "vip_minter" | "leases" | "sql_console" | "audit">("overview");
 
@@ -213,7 +217,7 @@ export default function App() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${masterKey}`,
+        Authorization: `Bearer ${sessionToken || masterKey}`,
       },
       body: JSON.stringify({ sql, params }),
     });
@@ -237,36 +241,85 @@ export default function App() {
     } catch {}
   };
 
-  // Verify Master Key Authentication
-  const verifyAuth = async (keyToVerify: string) => {
+  // Step 1: Send OTP to official administrator email
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!masterKey.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/v1/admin/auth/verify`, {
+      const res = await fetch(`${API_BASE}/v1/admin/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ master_key: keyToVerify }),
+        body: JSON.stringify({ master_key: masterKey.trim() }),
       });
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.message || "Invalid Super-Admin master secret.");
+        throw new Error(json.message || "Clave maestra de Super-Admin no válida.");
       }
-      localStorage.setItem("wpipe_admin_master_token", keyToVerify);
-      setIsAuthenticated(true);
-      fetchInitialData(keyToVerify);
-      loadSchemaExplorer(keyToVerify);
-      showToast("Sesión de Super-Admin iniciada correctamente.");
+      setOtpInfo(json);
+      setAuthStep("otp");
+      showToast("Código de verificación de 6 dígitos enviado a tu correo.", "info");
     } catch (err: any) {
-      setError(err.message || "Error al autenticar acceso.");
-      setIsAuthenticated(false);
+      setError(err.message || "Error al solicitar código de autenticación.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Step 2: Verify 6-digit OTP and obtain signed Super-Admin session token
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/v1/admin/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ master_key: masterKey.trim(), otp_code: otpCode.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.message || "Código incorrecto o expirado.");
+      }
+      const token = json.session_token;
+      localStorage.setItem("wpipe_admin_session_jwt", token);
+      setSessionToken(token);
+      setIsAuthenticated(true);
+      fetchInitialData(token);
+      loadSchemaExplorer(token);
+      showToast("Superautenticación exitosa. Sesión iniciada.");
+    } catch (err: any) {
+      setError(err.message || "Error al verificar código.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-verify existing JWT session token on mount
   useEffect(() => {
-    if (masterKey) {
-      verifyAuth(masterKey);
+    if (sessionToken) {
+      fetch(`${API_BASE}/v1/admin/auth/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ token: sessionToken }),
+      })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.authorized) {
+            setIsAuthenticated(true);
+            fetchInitialData(sessionToken);
+            loadSchemaExplorer(sessionToken);
+          } else {
+            localStorage.removeItem("wpipe_admin_session_jwt");
+            setSessionToken("");
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("wpipe_admin_session_jwt");
+          setSessionToken("");
+        });
     }
   }, []);
 
@@ -293,21 +346,18 @@ export default function App() {
     };
   }, [isAuthenticated, autoRefreshInterval]);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!masterKey.trim()) return;
-    verifyAuth(masterKey.trim());
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem("wpipe_admin_master_token");
+    localStorage.removeItem("wpipe_admin_session_jwt");
+    setSessionToken("");
     setMasterKey("");
+    setOtpCode("");
+    setAuthStep("key");
     setIsAuthenticated(false);
     setStats(null);
   };
 
   // Initial Data Fetcher
-  const fetchInitialData = async (token = masterKey) => {
+  const fetchInitialData = async (token = sessionToken || masterKey) => {
     try {
       // 1. Fetch Stats
       const statsRes = await fetch(`${API_BASE}/v1/admin/stats`, {
@@ -342,7 +392,7 @@ export default function App() {
   };
 
   // Load Database Schema Dynamically
-  const loadSchemaExplorer = async (token = masterKey) => {
+  const loadSchemaExplorer = async (token = sessionToken || masterKey) => {
     setLoadingSchema(true);
     try {
       const tablesRes = await fetch(`${API_BASE}/v1/admin/sql`, {
@@ -860,41 +910,101 @@ export default function App() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center justify-between">
-                <span>Super-Admin Master Secret</span>
-                <Lock size={12} className="text-indigo-400" />
-              </label>
-              <input
-                type="password"
-                value={masterKey}
-                onChange={(e) => setMasterKey(e.target.value)}
-                placeholder="Enter your master authority key..."
-                className="w-full px-3.5 py-2.5 bg-gray-900/90 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
-                required
-                autoFocus
-              />
-            </div>
+          {authStep === "key" ? (
+            <form onSubmit={handleRequestOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center justify-between">
+                  <span>Paso 1: Clave Maestra de Autoridad</span>
+                  <Lock size={12} className="text-indigo-400" />
+                </label>
+                <input
+                  type="password"
+                  value={masterKey}
+                  onChange={(e) => setMasterKey(e.target.value)}
+                  placeholder="Introduce la Master Key..."
+                  className="w-full px-3.5 py-2.5 bg-gray-900/90 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
+                  required
+                  autoFocus
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-semibold rounded-lg text-sm shadow-lg shadow-indigo-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Verifying...</span>
-                </>
-              ) : (
-                <>
-                  <Shield size={14} />
-                  <span>Access Master Cockpit</span>
-                </>
-              )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-semibold rounded-lg text-sm shadow-lg shadow-indigo-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Verificando y enviando código...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    <span>Enviar Código de Seguridad</span>
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="p-3 bg-indigo-950/60 border border-indigo-700/60 rounded-xl text-center">
+                <span className="text-[11px] text-indigo-300 block">Código enviado a</span>
+                <span className="text-xs font-mono font-bold text-white block mt-0.5">
+                  {otpInfo?.masked_email || "wisrovi.rodriguez@gmail.com"}
+                </span>
+                {otpInfo?.dev_code && (
+                  <span className="mt-2 inline-block text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono border border-amber-500/30">
+                    Dev Code: {otpInfo.dev_code}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center justify-between">
+                  <span>Paso 2: Código OTP (6 dígitos)</span>
+                  <Zap size={12} className="text-pink-400" />
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full px-3.5 py-3 bg-gray-900/90 border border-indigo-600 rounded-lg text-2xl tracking-[8px] text-center text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent font-mono"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setAuthStep("key"); setOtpCode(""); }}
+                  className="w-1/3 py-2.5 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg text-xs transition cursor-pointer"
+                >
+                  Volver
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || otpCode.length !== 6}
+                  className="w-2/3 py-2.5 px-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-semibold rounded-lg text-sm shadow-lg shadow-indigo-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Validando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield size={14} />
+                      <span>Ingresar al Cockpit</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="mt-6 pt-4 border-t border-gray-800 text-center text-[10px] text-gray-500">
             Cloudflare Workers &bull; D1 Distributed SQLite &bull; Coste: 0 &euro;/mes
