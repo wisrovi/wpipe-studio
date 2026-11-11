@@ -702,13 +702,13 @@ export default function App() {
       };
       if (v.code === "PRO_FEATURE_REQUIRED") {
         setLimitNotice({
-          title: "PRO Feature Required",
-          message: `The '${proNames[v.blockType || ""] || v.blockType}' block requires a verified WPipe Pro license in the local wpipe-engine.`,
+          title: "🚫 ¡No, no, no! 😉 Esta función requiere WPipe PRO",
+          message: `El bloque '${proNames[v.blockType || ""] || v.blockType}' es exclusivo de WPipe PRO. Activa tu licencia para desbloquear inteligencia artificial, concurrencia y tareas en segundo plano.`,
         });
       } else {
         setLimitNotice({
-          title: "Free Plan Limit Reached",
-          message: `The Free plan allows up to ${v.max} blocks per pipeline. Activate a Pro license in wpipe-engine to design unlimited pipelines.`,
+          title: "🚫 ¡No, no, no! 😉 Compra la versión PRO",
+          message: `Has alcanzado el límite máximo de ${v.max || 5} bloques en el Plan Free. Intentar burlar el sistema añadiendo más bloques no está permitido en esta versión. ¡Actualiza a WPipe PRO para diseñar pipelines ilimitados!`,
         });
       }
       setCanvasBlockCount(getWorkspaceBlockCount());
@@ -1546,6 +1546,15 @@ export default function App() {
           }
           setStatusMessage("✓ Simulation completed via VS Code engine");
         }
+      } else if (msg.type === "compileError" || msg.command === "compileError") {
+        setIsSaving(false);
+        setStatusMessage(`⚠️ ${msg.message || "Límite del plan Free excedido"}`);
+        if (msg.error === "LIMIT_EXCEEDED") {
+          setLimitNotice({
+            title: "Plan Free: Límite Excedido",
+            message: msg.message || "El pipeline supera el límite permitido en el plan Free (máximo 5 bloques y sin pasos de IA). Reduce los bloques o activa tu licencia Pro para compilar y generar los archivos del microservicio.",
+          });
+        }
       }
     };
 
@@ -1590,9 +1599,31 @@ export default function App() {
         }
       }
 
+      // Quota validation for Plan Free
+      const isPro = engineStatus.isPro || engineStatus.tier === "pro";
+      const max = engineStatus.entitlements.max_blocks ?? (isPro ? null : 5);
+      const currentCount = getWorkspaceBlockCount();
+      const hasAiStep = canvasIr.nodes?.some((n: any) => {
+        const d = n.data || {};
+        return d.block_type === "wpipe_ai_step" || d.origin === "described" || d.node_type === "ai";
+      });
+      const isOverQuota = !isPro && max !== null && currentCount > max;
+      const hasProLockedFeature = !isPro && hasAiStep;
+
       setHasUnsavedChanges(false);
-      setStatusMessage("✅ Pipeline guardado y microservicio compilado");
-      setTimeout(() => setStatusMessage(""), 3500);
+      if (isOverQuota || hasProLockedFeature) {
+        const reason = isOverQuota
+          ? `Tu pipeline tiene ${currentCount} bloques (el Plan Free permite un máximo de ${max}).`
+          : "Tu pipeline incluye un bloque de Inteligencia Artificial exclusivo de WPipe Pro.";
+        setLimitNotice({
+          title: "Plan Free: Archivos de Código Bloqueados",
+          message: `${reason} Se ha guardado el archivo de diseño visual (.wpipe), pero para generar los archivos de código del microservicio en disco debes reducir el pipeline a 5 bloques o activar una licencia Pro.`,
+        });
+        setStatusMessage("⚠️ Guardado .wpipe (código bloqueado por cuota Free)");
+      } else {
+        setStatusMessage("✅ Pipeline guardado y microservicio compilado");
+      }
+      setTimeout(() => setStatusMessage(""), 4000);
     } catch (err: any) {
       console.error("Manual save error:", err);
       setStatusMessage(`❌ Error al guardar: ${err.message}`);
@@ -4372,6 +4403,48 @@ export default function App() {
 
                   {/* Scrollable List of Blocks with Interlocking Shape & Hover Descriptions */}
                   <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-modal-scrollbar">
+                    {(() => {
+                      const isPro = engineStatus.isPro || engineStatus.tier === "pro";
+                      const maxBlocks = engineStatus.entitlements.max_blocks ?? (isPro ? null : 5);
+                      const isFreeLimitReached = !isPro && maxBlocks !== null && canvasBlockCount >= maxBlocks;
+                      if (!isFreeLimitReached) return null;
+                      return (
+                        <div className="sticky top-0 z-30 mx-0.5 mb-2.5 p-3 rounded-xl bg-[#1c1408]/95 border-2 border-amber-500/80 shadow-2xl backdrop-blur-md flex flex-col items-center text-center gap-1.5">
+                          <div className="flex items-center gap-1.5 font-black text-xs text-amber-300 uppercase tracking-wider">
+                            <span>🔒</span>
+                            <span>Palette Inactivada ({canvasBlockCount}/{maxBlocks})</span>
+                          </div>
+                          <p className="text-[11px] text-amber-200/90 leading-snug">
+                            Has alcanzado el límite de 5 bloques del Plan Free. Los bloques se han desactivado físicamente.
+                          </p>
+                          {isVSCodeEnvironment() ? (
+                            <button
+                              onClick={() => {
+                                if (typeof (window as any).__postToVsCode === "function") {
+                                  (window as any).__postToVsCode({ type: "activateLicense" });
+                                } else {
+                                  window.parent.postMessage({ type: "activateLicense" }, "*");
+                                }
+                              }}
+                              className="w-full mt-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 text-xs font-black shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <span>👑</span>
+                              <span>Desbloquear con WPipe PRO</span>
+                            </button>
+                          ) : (
+                            <a
+                              href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full mt-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 text-xs font-black shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <span>👑</span>
+                              <span>Comprar Licencia Pro</span>
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {[
                       {
                         id: "trigger",
@@ -4584,16 +4657,36 @@ export default function App() {
                       })
                       .map((b) => {
                         const ent = engineStatus.entitlements;
+                        const isPro = engineStatus.isPro || engineStatus.tier === "pro";
+                        const maxBlocks = ent.max_blocks ?? (isPro ? null : 5);
+                        const isFreeLimitReached = !isPro && maxBlocks !== null && canvasBlockCount >= maxBlocks;
                         const proLocked =
                           (b.id === "parallel" && !ent.parallel_blocks) ||
                           (b.id === "background" && !ent.background_blocks) ||
                           (b.id === "ai_step" && !ent.ai_steps);
+                        const isBlocked = isFreeLimitReached || proLocked;
                         return (
                         <div
                           key={b.id}
                           data-testid={`palette-${b.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (isFreeLimitReached) {
+                              setLimitNotice({
+                                title: "Límite del Plan Free Alcanzado",
+                                message: `Has alcanzado el límite de ${maxBlocks} bloques por pipeline en el Plan Free (actualmente tienes ${canvasBlockCount} bloques). El Block Palette ha sido inactivado para evitar pipelines incompatibles. Activa tu licencia Pro para añadir bloques ilimitados.`,
+                              });
+                              setStatusMessage(`🔒 Block Palette inactivado: Límite de ${maxBlocks} bloques alcanzado.`);
+                              return;
+                            }
+                            if (proLocked) {
+                              setLimitNotice({
+                                title: "Función Exclusiva de WPipe Pro",
+                                message: `El bloque '${b.name}' es exclusivo de WPipe Pro. Activa tu licencia Pro para desbloquear inteligencia artificial, concurrencia y tareas en segundo plano.`,
+                              });
+                              setStatusMessage(`🔒 '${b.name}' requiere licencia Pro.`);
+                              return;
+                            }
                             const before = getWorkspaceBlockCount();
                             b.action();
                             if (getWorkspaceBlockCount() === before && b.cat !== "trigger") {
@@ -4603,8 +4696,18 @@ export default function App() {
                           }}
                           onMouseEnter={(e) => handleBlockMouseEnter(b, e)}
                           onMouseLeave={handleBlockMouseLeave}
-                          title={proLocked ? "🔒 PRO feature: requires a verified Pro license in wpipe-engine" : undefined}
-                          className={`group relative cursor-pointer select-none transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] ${proLocked ? "opacity-60" : ""}`}
+                          title={
+                            isFreeLimitReached
+                              ? `🔒 Block Palette inactivado: Límite de ${maxBlocks} bloques alcanzado en el Plan Free`
+                              : proLocked
+                                ? "🔒 Función PRO: Requiere licencia verificada WPipe Pro"
+                                : undefined
+                          }
+                          className={`group relative select-none transition-all duration-150 ${
+                            isBlocked
+                              ? "opacity-25 grayscale pointer-events-none cursor-not-allowed filter contrast-50"
+                              : "cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                          }`}
                         >
                           {b.isHat ? (
                             <div className="w-12 h-2.5 rounded-t-full -mb-1 ml-3 bg-amber-500 border-t border-l border-r border-amber-300/80 shadow-sm" />
@@ -4627,7 +4730,11 @@ export default function App() {
                                 </span>
                               </div>
                             </div>
-                            {proLocked ? (
+                            {isFreeLimitReached ? (
+                              <div className="px-1.5 h-6 rounded-lg bg-black/40 flex items-center justify-center text-amber-300 text-[10px] font-black shrink-0 ml-1 shadow-sm border border-amber-400/40">
+                                🔒 MAX
+                              </div>
+                            ) : proLocked ? (
                               <div className="px-1.5 h-6 rounded-lg bg-black/40 flex items-center justify-center text-amber-300 text-[10px] font-black shrink-0 ml-1 shadow-sm border border-amber-400/40">
                                 🔒 PRO
                               </div>
@@ -5262,7 +5369,17 @@ export default function App() {
                       return (
                         <div
                           data-testid="block-counter"
+                          onClick={() => {
+                            if (!isPro && (over || atLimit)) {
+                              setLimitNotice({
+                                title: over ? "Plan Free: Cuota de Bloques Excedida" : "Plan Free: Límite Alcanzado",
+                                message: `El pipeline actual tiene ${canvasBlockCount} bloques (máximo ${max} permitidos en el Plan Free). Se ha inactivado el Block Palette para prevenir incompatibilidades. Activa tu licencia Pro para desbloquear pipelines ilimitados.`,
+                              });
+                            }
+                          }}
                           className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold border shadow-sm select-none ${
+                            !isPro && (over || atLimit) ? "cursor-pointer" : ""
+                          } ${
                             isPro
                               ? "bg-emerald-950/80 text-emerald-300 border-emerald-700/70"
                               : over
@@ -5273,8 +5390,10 @@ export default function App() {
                           }`}
                           title={
                             isPro
-                              ? "Verified PRO license: unlimited blocks"
-                              : "Free plan limit. The local engine rejects pipelines above this limit."
+                              ? "Licencia PRO verificada: bloques ilimitados"
+                              : over || atLimit
+                                ? "Plan Free: Límite alcanzado o excedido. Haz clic para ver detalles y activar Pro."
+                                : `Plan Free: ${canvasBlockCount} de ${max} bloques utilizados.`
                           }
                         >
                           Blocks {canvasBlockCount} / {isPro ? "∞" : max} · {isPro ? "PRO" : "Free"}
@@ -8477,6 +8596,22 @@ export default function App() {
                   className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer"
                 >
                   Install / Connect wpipe-engine
+                </button>
+              )}
+              {isVSCodeEnvironment() && (
+                <button
+                  onClick={() => {
+                    setLimitNotice(null);
+                    if (typeof (window as any).__postToVsCode === "function") {
+                      (window as any).__postToVsCode({ type: "activateLicense" });
+                    } else {
+                      window.parent.postMessage({ type: "activateLicense" }, "*");
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>🔑</span>
+                  <span>Activar Licencia en VS Code</span>
                 </button>
               )}
               <a
