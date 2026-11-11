@@ -5198,11 +5198,52 @@ export default function App() {
             {/* TAB 1: CODE / SCRATUX BLOCKS WORKSPACE (Permanently Mounted in DOM to preserve blocks) */}
             <div className={activeMainTab === "code" ? "flex-1 bg-[#07090e] relative overflow-hidden flex flex-col" : "hidden"}>
             {/* Floating Action Toolbar */}
-            <div className="absolute top-3 right-4 flex items-center gap-1.5 p-1 bg-gray-950/90 backdrop-blur-md border border-gray-800/90 rounded-xl shadow-2xl z-10 max-w-[calc(100%-2rem)] overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-gray-400 font-medium border-r border-gray-800 mr-1 hidden sm:flex select-none">
+            <div className="absolute top-3 right-4 flex items-center gap-1.5 p-1 bg-gray-950/95 backdrop-blur-md border border-gray-800/90 rounded-xl shadow-2xl z-20 max-w-[calc(100%-2rem)] overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-gray-400 font-medium border-r border-gray-800 mr-1 hidden md:flex select-none">
                 <Move size={12} className="text-sky-400" />
-                <span>Drag canvas to pan</span>
+                <span>Drag to pan</span>
               </div>
+
+              {/* Explicit Save Button (Ctrl+S) - Prominently Placed First */}
+              <button
+                onClick={handleManualSave}
+                disabled={isSaving}
+                title="Guardar Pipeline y Compilar Microservicio (Ctrl+S)"
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow-sm ${
+                  hasUnsavedChanges
+                    ? "bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/50"
+                    : "bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 border border-emerald-500/40"
+                }`}
+              >
+                <Save size={13} className={isSaving ? "animate-spin" : ""} />
+                <span>{isSaving ? "Guardando..." : hasUnsavedChanges ? "Guardar ●" : "Guardado ✓"}</span>
+              </button>
+
+              {/* Auto-Save Toggle */}
+              <button
+                onClick={() => {
+                  const nextVal = !autoSaveEnabled;
+                  setAutoSaveEnabled(nextVal);
+                  try {
+                    localStorage.setItem("wpipe_canvas_autosave", String(nextVal));
+                  } catch {}
+                  setStatusMessage(nextVal ? "Autoguardado activado (sincronización continua)" : "Autoguardado desactivado (modo manual con Ctrl+S)");
+                  setTimeout(() => setStatusMessage(""), 3000);
+                }}
+                title={autoSaveEnabled ? "Autoguardado: ACTIVADO (Guardado continuo al mover bloques)" : "Autoguardado: DESACTIVADO (Guarda manualmente con Ctrl+S)"}
+                className={`px-2 py-1.5 rounded-lg flex items-center gap-1 text-[11px] font-mono font-medium transition cursor-pointer border ${
+                  autoSaveEnabled
+                    ? "bg-emerald-950/60 text-emerald-400 border-emerald-600/50"
+                    : "bg-gray-800/80 text-gray-400 border-gray-700/60 hover:text-gray-300"
+                }`}
+              >
+                <span>Auto:</span>
+                <span className={autoSaveEnabled ? "text-emerald-300 font-bold" : "text-gray-400"}>
+                  {autoSaveEnabled ? "ON" : "OFF"}
+                </span>
+              </button>
+
+              <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
 
               <button
                 onClick={centerWorkspace}
@@ -5256,47 +5297,6 @@ export default function App() {
                 className="p-1.5 hover:bg-rose-950 text-rose-400 hover:text-rose-300 rounded-lg transition cursor-pointer"
               >
                 <Trash2 size={14} />
-              </button>
-
-              <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
-
-              {/* Explicit Save Button (Ctrl+S) */}
-              <button
-                onClick={handleManualSave}
-                disabled={isSaving}
-                title="Guardar Pipeline y Compilar Microservicio (Ctrl+S)"
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow-sm ${
-                  hasUnsavedChanges
-                    ? "bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/50"
-                    : "bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 border border-emerald-500/40"
-                }`}
-              >
-                <Save size={13} className={isSaving ? "animate-spin" : ""} />
-                <span>{isSaving ? "Guardando..." : hasUnsavedChanges ? "Guardar ●" : "Guardado ✓"}</span>
-              </button>
-
-              {/* Auto-Save Toggle */}
-              <button
-                onClick={() => {
-                  const nextVal = !autoSaveEnabled;
-                  setAutoSaveEnabled(nextVal);
-                  try {
-                    localStorage.setItem("wpipe_canvas_autosave", String(nextVal));
-                  } catch {}
-                  setStatusMessage(nextVal ? "Autoguardado activado (sincronización continua)" : "Autoguardado desactivado (modo manual con Ctrl+S)");
-                  setTimeout(() => setStatusMessage(""), 3000);
-                }}
-                title={autoSaveEnabled ? "Autoguardado: ACTIVADO (Guardado continuo al mover bloques)" : "Autoguardado: DESACTIVADO (Guarda manualmente con Ctrl+S)"}
-                className={`px-2 py-1.5 rounded-lg flex items-center gap-1 text-[11px] font-mono font-medium transition cursor-pointer border ${
-                  autoSaveEnabled
-                    ? "bg-emerald-950/60 text-emerald-400 border-emerald-600/50"
-                    : "bg-gray-800/80 text-gray-400 border-gray-700/60 hover:text-gray-300"
-                }`}
-              >
-                <span>Auto:</span>
-                <span className={autoSaveEnabled ? "text-emerald-300 font-bold" : "text-gray-400"}>
-                  {autoSaveEnabled ? "ON" : "OFF"}
-                </span>
               </button>
 
               <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
