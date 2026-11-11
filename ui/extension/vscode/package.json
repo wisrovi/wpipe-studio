@@ -2,7 +2,7 @@
   "name": "wpipe-vscode",
   "displayName": "WPipe",
   "description": "Visual pipeline canvas designer, native step registry, live DAG analysis, and microservice generator for WPipe inside VS Code.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publisher": "wpipe",
   "author": {
     "name": "William Steve Rodriguez Villamizar (Wisrovi)",
