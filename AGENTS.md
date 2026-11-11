@@ -933,21 +933,54 @@ self-hosted/híbrido (§3.2). Registrado para no re-litigar.
 
 ---
 
-## 12. Pendientes
+## 12. Estructura y Estado del Monorepo
 
-### 12.1 Estructura del repo (sin crear todavía)
+### 12.1 Taxonomía Canónica del Repositorio — Consolidada ✅
 
-Este repo tiene un solo commit inicial (`.gitignore`, `LICENSE`, `README.md`).
-**No se crea estructura hasta que haya código.** Tu regla del monorepo
-(`AGENTS.md` §2) exige que `PROJECT_MAP.md` refleje estructura **real**, no planes.
-Se actualiza el mapa en el mismo commit en que se cree el scaffold.
+El repositorio se estructura bajo la arquitectura limpia y desacoplada de WPipe:
+
+```text
+wpipe-studio/
+├── AGENTS.md               # Contexto persistente del agente y reglas obligatorias
+├── PLAN.md                 # Roadmap y decisiones técnicas de arquitectura
+├── README.md               # Portal y Hero de presentación
+├── LICENSE                 # Licencia MIT
+├── Makefile                # 9 targets canónicos WPipe (lint, test, format, build...)
+├── .pylintrc / ruff.toml   # Reglas de linters (Python 3.11, max-len 100)
+├── .gitignore
+│
+├── pipelines/              # Microservicios impulsados y orquestados por WPipe
+│   ├── engine/             # Daemon nativo local (wpipe-engine, IPC socket, AST compiler)
+│   ├── verifier/           # Pipeline de verificación QA en sandbox Docker y dry_run_pipeline
+│   └── licensing-admin/    # Panel Streamlit backoffice con admin_cloudfire_pipeline
+│
+├── edge/                   # Infraestructura serverless a 0 €/mes
+│   └── cloudfire/          # Cloudflare Worker API (api.wisrovi.dev, D1 DB, 2FA OTP, Lemon Squeezy)
+│
+├── ui/                     # Frontends y presentaciones visuales
+│   ├── web/
+│   │   ├── studio-canvas/  # Canvas interactivo React/xyflow desplegado en studio.wisrovi.dev
+│   │   ├── superadmin/     # Consola administrativa protegida por 2FA OTP en admin.wisrovi.dev
+│   │   └── client-portal/  # Portal cliente para activación y claves en portal.wisrovi.dev
+│   └── extension/
+│       └── vscode/         # Extensión oficial de VS Code (Custom Editor *.wpipe y 196 steps)
+│
+├── contracts/              # Fuentes de verdad compartidas
+│   ├── ir/                 # Esquema formal JSON Schema (wpipe-schema.json)
+│   ├── catalog/            # Manifiesto canónico de release (steps_catalog.json)
+│   └── fixtures/           # Casos de prueba y pipelines sintéticos
+│
+├── scripts/                # Scripts de automatización y sandbox (run_tests_docker.sh, run_coverage.sh)
+├── docs/                   # Documentación, marketing, landing comercial (index.html) y promo-video
+├── infra/                  # Contenedores docker compose y dev-environment (code-server)
+└── legacy/                 # Archivo histórico (antiguo backend monolítico)
+```
 
 ### 12.2 P5 — cerrado ✅
 
 > **Owner:** *"P5, sí."* → **(a) sandbox. Confirmado.**
 
-§5.9 ya no dice "por defecto, sin confirmar". No hace falta el worker con
-`resource.setrlimit`. **Sin pendientes aquí.**
+§5.9 ya no dice "por defecto, sin confirmar". El parser de `.py` importados corre en sandbox Docker aislado.
 
 ### 12.3 Remote de git — resuelto ✅
 
@@ -957,9 +990,9 @@ origin  git@github.com:wisrovi/wpipe-studio.git (fetch)
 origin  git@github.com:wisrovi/wpipe-studio.git (push)
 ```
 
-El repo ya estaba renombrado en GitHub (`wisrovi/wpipe-studio`, público) y tenía un
-commit `e92e2cc` que local no tenía. Se hizo `git remote set-url` + fast-forward a
-`origin/main`. La rama local está **al día con el remote**.
+### 12.4 Seguridad y Superautenticación en Edge — Resuelto ✅
+- Subdominio `admin.wisrovi.dev` blindado con flujo de autenticación de dos factores (Master Secret + Código OTP criptográfico de 6 dígitos enviado por correo electrónico a `wisrovi.rodriguez@gmail.com`).
+- Sesiones de Super-Admin firmadas mediante tokens HMAC-SHA256 con expiración a 24 horas.
 
 ---
 
@@ -977,3 +1010,5 @@ commit `e92e2cc` que local no tenía. Se hizo `git remote set-url` + fast-forwar
 | 2026-10-01 | **P5 confirmado**: parser `.py` en sandbox. §5.9 | Owner |
 | 2026-10-01 | Remote → `git@github.com:wisrovi/wpipe-studio.git` + sync con `origin/main` | Owner |
 | 2026-10-01 | **Catálogo: `steps_catalog.json` es el manifiesto de release** (fuente de verdad). No copiar, no derivar del árbol; GET/POST para la lista estable | Owner |
+| 2026-11-11 | **Taxonomía Canónica**: Reorganización completa en `pipelines/`, `ui/`, `edge/`, `contracts/`, `scripts/`, `infra/`, `docs/`, `legacy/` | Owner |
+| 2026-11-11 | **Superautenticación 2FA**: Flujo OTP por correo en `edge/cloudfire` y `ui/web/superadmin` | Owner |
