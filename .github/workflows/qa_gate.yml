@@ -7,8 +7,8 @@ on:
     branches: ["main"]
 
 jobs:
-  backend-qa:
-    name: Backend & Pipelines Verification
+  pipelines-qa:
+    name: WPipe Pipelines Verification & Quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -26,12 +26,16 @@ jobs:
 
       - name: Run Ruff Linter
         run: |
-          ruff check backend/ pipelines/
+          ruff check pipelines/
+
+      - name: Run Pylint Check
+        run: |
+          pylint --rcfile=.pylintrc pipelines/engine/wpipe_engine
 
       - name: Run Dockerized Sandbox Tests
         run: |
-          chmod +x run_tests_docker.sh
-          ./run_tests_docker.sh
+          chmod +x scripts/run_tests_docker.sh
+          ./scripts/run_tests_docker.sh
 
   vscode-extension-qa:
     name: VS Code Extension Build & Quality

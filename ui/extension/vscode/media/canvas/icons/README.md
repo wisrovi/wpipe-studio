@@ -1,11 +1,11 @@
-# 📦 Webview Canvas Icons
+# 📦 Canvas Step Icons
 
-Iconos de bloques del canvas embebido.
+Iconografía oficial para los bloques y categorías del canvas.
 
 ## 📌 Arquitectura & Flujo
 ```mermaid
 flowchart LR
-    Mod["Webview Canvas Icons"] --> WPipe["WPipe Studio Ecosystem"]
+    Mod["Canvas Step Icons"] --> WPipe["WPipe Studio Ecosystem"]
     style Mod fill:#1e293b,color:#fff,stroke:#3b82f6
     style WPipe fill:#1e293b,color:#fff,stroke:#10b981
 ```

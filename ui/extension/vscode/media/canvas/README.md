@@ -1,11 +1,11 @@
-# 📦 VS Code Webview Canvas
+# 📦 Frontend Static Assets
 
-Archivos estáticos del lienzo embebidos en el webview de la extensión.
+Recursos estáticos y favicon para la aplicación web.
 
 ## 📌 Arquitectura & Flujo
 ```mermaid
 flowchart LR
-    Mod["VS Code Webview Canvas"] --> WPipe["WPipe Studio Ecosystem"]
+    Mod["Frontend Static Assets"] --> WPipe["WPipe Studio Ecosystem"]
     style Mod fill:#1e293b,color:#fff,stroke:#3b82f6
     style WPipe fill:#1e293b,color:#fff,stroke:#10b981
 ```

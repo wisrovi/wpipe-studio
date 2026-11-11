@@ -49,17 +49,17 @@ logs:
 
 test:
 	@echo "==> Running verification test battery in Docker sandbox..."
-	./run_tests_docker.sh
+	./scripts/run_tests_docker.sh
 
 lint:
 	@echo "==> Executing linters (ruff, pylint)..."
-	@if command -v ruff >/dev/null 2>&1; then ruff check backend/ pipelines/; else echo "ruff not found in host PATH"; fi
-	@if command -v pylint >/dev/null 2>&1; then pylint --rcfile=.pylintrc backend/app pipelines/; fi
+	@if command -v ruff >/dev/null 2>&1; then ruff check pipelines/; else echo "ruff not found in host PATH"; fi
+	@if command -v pylint >/dev/null 2>&1; then pylint --rcfile=.pylintrc pipelines/; fi
 
 format:
 	@echo "==> Auto-formatting codebase..."
-	@if command -v black >/dev/null 2>&1; then black --line-length 100 backend/ pipelines/ ui/extension/vscode/; fi
-	@if command -v isort >/dev/null 2>&1; then isort backend/ pipelines/; fi
+	@if command -v black >/dev/null 2>&1; then black --line-length 100 pipelines/ ui/extension/vscode/; fi
+	@if command -v isort >/dev/null 2>&1; then isort pipelines/; fi
 
 clean:
 	@echo "==> Cleaning cache and temporary files..."
