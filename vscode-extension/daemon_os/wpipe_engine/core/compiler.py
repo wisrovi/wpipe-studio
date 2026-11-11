@@ -195,6 +195,8 @@ class ASTCompiler:
             node_type = "step"
             trigger_type = None
             trigger_param = None
+            response_type = None
+            response_param = None
             step_name = None
             namespace = None
             cond_expr = None
@@ -208,7 +210,9 @@ class ASTCompiler:
                 label = f"Trigger ({trigger_type.upper()}: {trigger_param})"
             elif blk_type == "wpipe_response":
                 node_type = "response"
-                label = f"Response ({fields.get('RESPONSE_TYPE', 'http')})"
+                response_type = fields.get("RESPONSE_TYPE", "http_json")
+                response_param = fields.get("RESPONSE_PARAM", "")
+                label = f"Response ({response_type})"
             elif blk_type == "wpipe_step":
                 step_name = fields.get("STEP_NAME", "Step")
                 namespace = fields.get("NAMESPACE")
@@ -250,6 +254,8 @@ class ASTCompiler:
                 "node_type": node_type,
                 "trigger_type": trigger_type,
                 "trigger_param": trigger_param,
+                "response_type": response_type,
+                "response_param": response_param,
                 "step_name": step_name,
                 "func_name": step_name,
                 "namespace": namespace,
@@ -349,8 +355,26 @@ class ASTCompiler:
         )
         trigger_data = trigger_node.get("data", {}) if trigger_node else {}
         trigger_type = (trigger_data.get("trigger_type") or "api").lower()
-        is_api_trigger = not trigger_node or trigger_type in ("api", "rest", "fastapi")
+        is_kafka_trigger = trigger_type in ("kafka", "kafka_consumer", "wkafka")
+        is_api_trigger = not is_kafka_trigger and (not trigger_node or trigger_type in ("api", "rest", "fastapi"))
         trigger_param = (trigger_data.get("trigger_param") or "").strip()
+
+        # Extract response / egress node configuration
+        response_node = next(
+            (
+                n
+                for n in nodes
+                if n.get("data", {}).get("node_type") in ("response", "wpipe_response")
+                or n.get("type") == "wpipe_response"
+                or "response" in (n.get("data", {}).get("node_type") or "")
+            ),
+            None,
+        )
+        response_data = response_node.get("data", {}) if response_node else {}
+        response_type = (response_data.get("response_type") or "http_json").lower()
+        response_param = (response_data.get("response_param") or "").strip()
+        is_kafka_publish = response_type in ("kafka_publish", "kafka_producer", "kafka")
+
         default_root_path = ""
         if is_api_trigger and trigger_param.startswith("/"):
             default_root_path = trigger_param[:-4] if trigger_param.endswith("/run") else trigger_param
@@ -1072,7 +1096,116 @@ def {fn_name}(request: PipelineRequestDTO) -> PipelineResponseDTO:
             extra_endpoints_code = "\n".join(extra_eps)
 
         # 6. Main.py
-        main_py = f'''"""Microservice main entrypoint: FastAPI REST API & event listener.
+        if is_kafka_trigger:
+            kafka_in_topic = trigger_param if trigger_param and not trigger_param.startswith("/") else "events.input"
+            kafka_out_topic = response_param if is_kafka_publish and response_param and not response_param.startswith("/") else "events.output"
+
+            producer_send_snippet = ""
+            if is_kafka_publish:
+                producer_send_snippet = f'''
+        with kafka.producer() as producer:
+            out_topic = settings.kafka_output_topic
+            producer.send(out_topic, value=result, format="json")
+            logger.info(f"Published pipeline execution result to topic {{out_topic}} for {{tx_id}}")'''
+
+            main_py = f'''"""Microservice main entrypoint: WKafka streaming worker & event consumer.
+
+Complies with WPipe Quality Rules and WKafka Architecture Standard (wisrovi SUITE).
+"""
+
+from typing import Any
+
+from loguru import logger
+from wdecorators import time_execution  # type: ignore[import-untyped]
+from wkafka import WKafka  # type: ignore[import-untyped]
+from wpipe import ResourceMonitor, TaskTimer  # type: ignore[import-untyped]
+from wpipe.exception.api_error import ProcessError  # type: ignore[import-untyped]
+
+from config.settings import settings
+from pipelines import build_pipeline
+from utils.helpers import generate_transaction_id
+
+kafka: WKafka = WKafka(
+    bootstrap_servers=settings.kafka_bootstrap_servers,
+    client_id=settings.kafka_client_id or settings.app_name,
+)
+
+
+def handle_pipeline_event(event_data: dict[str, Any], pipeline_name: str = "main") -> dict[str, Any]:
+    """Receive trigger event, execute pipeline under resource monitoring and return result.
+
+    Args:
+        event_data (dict[str, Any]): Event payload from Kafka.
+        pipeline_name (str): Identifier of the target pipeline to execute. Defaults to 'main'.
+
+    Returns:
+        dict[str, Any]: Execution result dictionary.
+
+    Raises:
+        ProcessError: If a pipeline runtime task fails.
+        Exception: If an unexpected error occurs during execution.
+    """
+    tx_id = event_data.get("transaction_id") or generate_transaction_id()
+    event_data["transaction_id"] = tx_id
+    pipeline = build_pipeline(pipeline_name)
+
+    try:
+        with (
+            ResourceMonitor(f"{{settings.app_name}}_monitor") as monitor,
+            TaskTimer(f"{{settings.app_name}}_timer", timeout_seconds=900) as timer,
+        ):
+
+            @time_execution
+            def run_pipe() -> dict[str, Any]:
+                return pipeline.run(event_data)
+
+            result = run_pipe()
+
+        summary = monitor.get_summary()
+        peak_ram = summary.get("peak_ram_mb", 0) if isinstance(summary, dict) else 0
+        elapsed = timer.elapsed_seconds
+
+        logger.info(
+            f"Execution finished for {{tx_id}}. Elapsed: {{elapsed:.2f}}s, Peak RAM: {{peak_ram}} MB"
+        )
+        return result
+    except ProcessError:
+        logger.error(f"WPipe process error for {{tx_id}}")
+        raise
+    except Exception:
+        logger.error(f"Unexpected error running pipeline for {{tx_id}}")
+        raise
+
+
+@kafka.consumer(topic=settings.kafka_input_topic, format="json", group_id=settings.kafka_group_id)
+def on_kafka_event(msg: Any) -> None:
+    """Consume message from Kafka input topic and dispatch to WPipe pipeline.
+
+    Args:
+        msg (Any): WKafka Message wrapper containing deserialized payload.
+    """
+    raw_val = getattr(msg, "value", msg)
+    if isinstance(raw_val, dict):
+        payload = dict(raw_val)
+    else:
+        payload = {{"raw_data": raw_val}}
+
+    tx_id = payload.get("transaction_id") or generate_transaction_id()
+    payload["transaction_id"] = tx_id
+    logger.info(f"Consumed message on topic {{settings.kafka_input_topic}} with tx_id: {{tx_id}}")
+
+    try:
+        result = handle_pipeline_event(payload){producer_send_snippet}
+    except Exception as err:
+        logger.error(f"Failed processing Kafka message for {{tx_id}}: {{err}}")
+
+
+if __name__ == "__main__":
+    logger.info(f"Starting WKafka consumer worker for {{settings.app_name}}...")
+    kafka.run_consumers(block=True)
+'''
+        else:
+            main_py = f'''"""Microservice main entrypoint: FastAPI REST API & event listener.
 
 Complies with WPipe Quality Rules (resource monitoring, timing, 0 hasattr/getattr).
 """
@@ -1249,6 +1382,7 @@ def _load_yaml_config() -> dict[str, Any]:
 _config: dict[str, Any] = _load_yaml_config()
 _server_cfg: dict[str, Any] = _config.get("server", {{}})
 _tracking_cfg: dict[str, Any] = _config.get("tracking", {{}})
+_kafka_cfg: dict[str, Any] = _config.get("kafka", {{}})
 
 
 class AppSettings(BaseModel):
@@ -1263,6 +1397,11 @@ class AppSettings(BaseModel):
         port (int): Port number on which the HTTP server listens.
         root_path (str): FastAPI root path prefix for reverse proxy routing.
         tracking_db (str): SQLite database path for WPipe execution tracking.
+        kafka_bootstrap_servers (str): Comma-separated list of Kafka broker endpoints.
+        kafka_input_topic (str): Input topic consumed by this microservice.
+        kafka_output_topic (str): Output topic for published results.
+        kafka_group_id (str | None): Consumer group identifier.
+        kafka_client_id (str): Identifier for this client.
     """
 
     app_name: str = Field(
@@ -1297,6 +1436,26 @@ class AppSettings(BaseModel):
         default=os.getenv("WPIPE_TRACKING_DB", _tracking_cfg.get("db_path", "output/tracking.db")),
         description="WPipe forensics SQLite database",
     )
+    kafka_bootstrap_servers: str = Field(
+        default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", os.getenv("KAFKA_SERVER", _kafka_cfg.get("bootstrap_servers", "localhost:9092"))),
+        description="Comma-separated Kafka brokers",
+    )
+    kafka_input_topic: str = Field(
+        default=os.getenv("KAFKA_INPUT_TOPIC", _kafka_cfg.get("input_topic", "{kafka_in_topic if is_kafka_trigger else 'events.input'}")),
+        description="Kafka input topic to consume",
+    )
+    kafka_output_topic: str = Field(
+        default=os.getenv("KAFKA_OUTPUT_TOPIC", _kafka_cfg.get("output_topic", "{kafka_out_topic if is_kafka_trigger else 'events.output'}")),
+        description="Kafka output topic for pipeline results",
+    )
+    kafka_group_id: str | None = Field(
+        default=os.getenv("KAFKA_GROUP_ID", _kafka_cfg.get("group_id")),
+        description="Kafka consumer group ID",
+    )
+    kafka_client_id: str = Field(
+        default=os.getenv("KAFKA_CLIENT_ID", _kafka_cfg.get("client_id", "{project_name}")),
+        description="Kafka client identifier",
+    )
 
 
 settings: AppSettings = AppSettings()
@@ -1314,6 +1473,12 @@ server:
 tracking:
   db_path: "output/tracking.db"
   collect_system_metrics: true
+kafka:
+  bootstrap_servers: "localhost:9092"
+  input_topic: "{kafka_in_topic if is_kafka_trigger else 'events.input'}"
+  output_topic: "{kafka_out_topic if is_kafka_trigger else 'events.output'}"
+  group_id: null
+  client_id: "{project_name}"
 """
 
         config_init_py = f'''"""Configuration package for {project_name}."""
@@ -1864,7 +2029,39 @@ def test_execute_pipeline_success() -> None:
     assert "transaction_id" in result
 '''
 
-        test_api_py = '''"""FastAPI endpoint integration tests."""
+        if is_kafka_trigger:
+            test_entrypoint_filename = "app/test/test_consumer.py"
+            test_api_py = '''"""Kafka consumer integration and dispatch tests."""
+
+from config.settings import settings
+from main import handle_pipeline_event, on_kafka_event
+
+
+def test_kafka_event_dispatch() -> None:
+    """Verify Kafka consumer event handler executes pipeline and updates context."""
+    test_msg = {
+        "transaction_id": "tx_kfk_test_1",
+        "action": "process",
+        "url": "https://httpbin.org/get",
+        "method": "GET",
+    }
+    result = handle_pipeline_event(test_msg)
+    assert result is not None
+    assert result.get("transaction_id") == "tx_kfk_test_1"
+    assert result.get("status") in ("CLEANED", "TRANSFORMED", "SCORED", "success", "SUCCESS", "PENDING")
+
+
+def test_on_kafka_event_wrapper() -> None:
+    """Verify on_kafka_event runs gracefully without uncaught exceptions."""
+    class DummyMsg:
+        value = {"transaction_id": "tx_kfk_dummy", "data": "ping"}
+
+    # Should execute and log without raising errors
+    on_kafka_event(DummyMsg())
+'''
+        else:
+            test_entrypoint_filename = "app/test/test_api.py"
+            test_api_py = '''"""FastAPI endpoint integration tests."""
 
 from fastapi.testclient import TestClient
 
@@ -1905,7 +2102,8 @@ __all__ = ["test_build_pipeline", "test_execute_pipeline_success"]
 '''
 
         # 14. Root orchestration files
-        requirements_txt = """wpipe>=2.5.13
+        extra_reqs = "\nwkafka>=1.0.0" if is_kafka_trigger or is_kafka_publish else ""
+        requirements_txt = f"""wpipe>=2.5.13
 wpipe-steps>=1.0.2
 wdecorators>=1.1.0
 pydantic>=2.0.0
@@ -1917,7 +2115,7 @@ pyyaml>=6.0.1
 requests>=2.31.0
 pytest>=8.0.0
 pytest-cov>=4.1.0
-httpx>=0.27.0
+httpx>=0.27.0{extra_reqs}
 """
 
         now_utc = datetime.now(timezone.utc)
@@ -2244,7 +2442,7 @@ explicit_package_bases = true
             "app/test/test_dto.py": test_dto_py,
             "app/test/test_states.py": test_states_py,
             "app/test/test_pipeline.py": test_pipeline_py,
-            "app/test/test_api.py": test_api_py,
+            test_entrypoint_filename: test_api_py,
             "app/utils/__init__.py": utils_init_py,
             "app/utils/helpers.py": utils_helpers_py,
             "app/pipelines.py": pipelines_py,
