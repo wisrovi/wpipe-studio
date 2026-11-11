@@ -745,6 +745,32 @@ textarea.code-editor-textarea:focus,
   margin: 0 auto;
 }
 
+/* Blockly PRO Quota Warning Styling */
+.blockly-pro-locked > .blocklyPath {
+  stroke: #f59e0b !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: 6 3 !important;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6)) !important;
+}
+
+.blockly-pro-locked .blocklyIconShield {
+  fill: #f59e0b !important;
+  stroke: #b45309 !important;
+}
+
+.blockly-pro-locked .blocklyIconMark {
+  fill: #000000 !important;
+  font-weight: 900 !important;
+}
+
+.wpipe-pro-badge {
+  transition: transform 0.15s ease-out;
+}
+
+.wpipe-pro-badge:hover {
+  filter: brightness(1.15) drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+}
+
 
 
 
