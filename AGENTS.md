@@ -994,6 +994,20 @@ origin  git@github.com:wisrovi/wpipe-studio.git (push)
 - Subdominio `admin.wisrovi.dev` blindado con flujo de autenticación de dos factores (Master Secret + Código OTP criptográfico de 6 dígitos enviado por correo electrónico a `wisrovi.rodriguez@gmail.com`).
 - Sesiones de Super-Admin firmadas mediante tokens HMAC-SHA256 con expiración a 24 horas.
 
+### 12.5 Publicación Oficial de la Extensión VS Code — Resuelto ✅
+- Namespace: `wpipe`, Identificador: `wpipe.wpipe-vscode`.
+- Versión `2.0.1` publicada en Open VSX Registry, reemplazando la `1.0.5` histórica como versión activa `latest`.
+- Binario `wpipe-vscode-2.0.1.vsix` sincronizado en Cloudflare R2 (`wpipe-releases`).
+
+### 12.6 Matriz de Skills Persistentes del Monorepo (`.agents/skills/`) — Resuelto ✅
+Todo el conocimiento operacional y arquitectónico del proyecto está formalizado en skills exhaustivas:
+- `wpipe-architecture`: Taxonomía, principios, contratos IR y catálogo de 196 steps.
+- `wpipe-cloudfire`: Infraestructura Edge (Worker `api.wisrovi.dev`, D1, R2, 2FA OTP, Lemon Squeezy).
+- `wpipe-engine`: Daemon nativo `wpipe-engine`, sockets IPC `/tmp/wpipe.sock`, AST compiler/decompiler.
+- `wpipe-canvas-ui`: Frontends React (`studio.wisrovi.dev`, `admin.wisrovi.dev`, `portal.wisrovi.dev`).
+- `wpipe-qa-verification`: Batería estricta de calidad Docker (black, ruff, mypy, pylint, pytest) y `dry_run_pipeline`.
+- `wpipe-vscode-testing`: Metodología y testing de la extensión en contenedores Docker y Chrome DevTools.
+
 ---
 
 ## Changelog de decisiones
@@ -1012,3 +1026,5 @@ origin  git@github.com:wisrovi/wpipe-studio.git (push)
 | 2026-10-01 | **Catálogo: `steps_catalog.json` es el manifiesto de release** (fuente de verdad). No copiar, no derivar del árbol; GET/POST para la lista estable | Owner |
 | 2026-11-11 | **Taxonomía Canónica**: Reorganización completa en `pipelines/`, `ui/`, `edge/`, `contracts/`, `scripts/`, `infra/`, `docs/`, `legacy/` | Owner |
 | 2026-11-11 | **Superautenticación 2FA**: Flujo OTP por correo en `edge/cloudfire` y `ui/web/superadmin` | Owner |
+| 2026-11-11 | **Publicación VS Code**: Publicada v2.0.1 oficial en Open VSX y R2 reemplazando v1.0.5 | Owner |
+| 2026-11-11 | **Skills del Repositorio**: Creada suite completa de 6 skills en `.agents/skills/` | Owner |
