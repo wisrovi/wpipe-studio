@@ -588,15 +588,15 @@ export default function App() {
       return {
         ...disconnectedEngineStatus(DEFAULT_ENGINE_PORT),
         connected: true,
-        tier: "pro",
-        isPro: true,
-        verifiedCryptographically: true,
-        customerName: "William Rodriguez",
+        tier: "free",
+        isPro: false,
+        verifiedCryptographically: false,
+        customerName: "Free User",
         entitlements: {
-          max_blocks: null,
-          parallel_blocks: true,
-          background_blocks: true,
-          ai_steps: true,
+          max_blocks: 5,
+          parallel_blocks: false,
+          background_blocks: false,
+          ai_steps: false,
           real_simulation: true,
           zip_export: true,
           max_projects: null,
@@ -1440,31 +1440,31 @@ export default function App() {
             }
           }
           if (msg.license) {
-            if (msg.license.is_pro || msg.license.tier === "pro") {
-              setCanvasLimits({
-                max_blocks: null,
-                parallel_blocks: true,
-                background_blocks: true,
-                ai_steps: true,
-              });
-              setEngineStatus((prev) => ({
-                ...prev,
-                connected: true,
-                isPro: true,
-                tier: "pro",
-                verifiedCryptographically: true,
-                customerName: msg.license.customer_name || "William Rodriguez",
-                entitlements: {
-                  max_blocks: null,
-                  parallel_blocks: true,
-                  background_blocks: true,
-                  ai_steps: true,
-                  real_simulation: true,
-                  zip_export: true,
-                  max_projects: null,
-                },
-              }));
-            }
+            const isPro = Boolean(msg.license.is_pro || msg.license.tier === "pro");
+            const maxBlk = isPro ? null : (msg.license.max_blocks ?? 5);
+            setCanvasLimits({
+              max_blocks: maxBlk,
+              parallel_blocks: isPro,
+              background_blocks: isPro,
+              ai_steps: isPro,
+            });
+            setEngineStatus((prev) => ({
+              ...prev,
+              connected: true,
+              isPro: isPro,
+              tier: isPro ? "pro" : "free",
+              verifiedCryptographically: isPro,
+              customerName: msg.license.customer_name || (isPro ? "Licensed Developer" : "Free User"),
+              entitlements: {
+                max_blocks: maxBlk,
+                parallel_blocks: isPro,
+                background_blocks: isPro,
+                ai_steps: isPro,
+                real_simulation: true,
+                zip_export: true,
+                max_projects: null,
+              },
+            }));
             checkEngine();
           }
 
@@ -5197,231 +5197,234 @@ export default function App() {
             </div>
             {/* TAB 1: CODE / SCRATUX BLOCKS WORKSPACE (Permanently Mounted in DOM to preserve blocks) */}
             <div className={activeMainTab === "code" ? "flex-1 bg-[#07090e] relative overflow-hidden flex flex-col" : "hidden"}>
-            {/* Floating Action Toolbar */}
-            <div className="absolute top-3 right-4 flex items-center gap-1.5 p-1 bg-gray-950/95 backdrop-blur-md border border-gray-800/90 rounded-xl shadow-2xl z-20 max-w-[calc(100%-2rem)] overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-gray-400 font-medium border-r border-gray-800 mr-1 hidden md:flex select-none">
-                <Move size={12} className="text-sky-400" />
-                <span>Drag to pan</span>
-              </div>
+              {/* Blockly Workspace + Live Split View + Inspector Component */}
+              <div className="flex-1 w-full h-full flex overflow-hidden relative">
+                {/* Workspace Container */}
+                <div className={`h-full flex flex-col relative ${isSplitView ? "w-1/2 border-r border-[#2d2d2d]" : "w-full flex-1"}`}>
+                  <BlocklyComponent
+                    onBlockSelected={handleBlockSelected}
+                    onBlockInspect={handleBlockInspect}
+                    onWorkspaceChange={handleWorkspaceChanged}
+                  />
 
-              {/* Explicit Save Button (Ctrl+S) - Prominently Placed First */}
-              <button
-                onClick={handleManualSave}
-                disabled={isSaving}
-                title="Guardar Pipeline y Compilar Microservicio (Ctrl+S)"
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow-sm ${
-                  hasUnsavedChanges
-                    ? "bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/50"
-                    : "bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 border border-emerald-500/40"
-                }`}
-              >
-                <Save size={13} className={isSaving ? "animate-spin" : ""} />
-                <span>{isSaving ? "Guardando..." : hasUnsavedChanges ? "Guardar ●" : "Guardado ✓"}</span>
-              </button>
+                  {/* Floating Action Toolbar INSIDE Workspace Container */}
+                  <div className="absolute top-3 right-4 flex items-center gap-1.5 p-1 bg-gray-950/95 backdrop-blur-md border border-gray-800/90 rounded-xl shadow-2xl z-30 max-w-[calc(100%-2rem)] overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-gray-400 font-medium border-r border-gray-800 mr-1 hidden md:flex select-none">
+                      <Move size={12} className="text-sky-400" />
+                      <span>Drag to pan</span>
+                    </div>
 
-              {/* Auto-Save Toggle */}
-              <button
-                onClick={() => {
-                  const nextVal = !autoSaveEnabled;
-                  setAutoSaveEnabled(nextVal);
-                  try {
-                    localStorage.setItem("wpipe_canvas_autosave", String(nextVal));
-                  } catch {}
-                  setStatusMessage(nextVal ? "Autoguardado activado (sincronización continua)" : "Autoguardado desactivado (modo manual con Ctrl+S)");
-                  setTimeout(() => setStatusMessage(""), 3000);
-                }}
-                title={autoSaveEnabled ? "Autoguardado: ACTIVADO (Guardado continuo al mover bloques)" : "Autoguardado: DESACTIVADO (Guarda manualmente con Ctrl+S)"}
-                className={`px-2 py-1.5 rounded-lg flex items-center gap-1 text-[11px] font-mono font-medium transition cursor-pointer border ${
-                  autoSaveEnabled
-                    ? "bg-emerald-950/60 text-emerald-400 border-emerald-600/50"
-                    : "bg-gray-800/80 text-gray-400 border-gray-700/60 hover:text-gray-300"
-                }`}
-              >
-                <span>Auto:</span>
-                <span className={autoSaveEnabled ? "text-emerald-300 font-bold" : "text-gray-400"}>
-                  {autoSaveEnabled ? "ON" : "OFF"}
-                </span>
-              </button>
+                    {/* Explicit Save Button (Ctrl+S) - Prominently Placed First */}
+                    <button
+                      onClick={handleManualSave}
+                      disabled={isSaving}
+                      title="Guardar Pipeline y Compilar Microservicio (Ctrl+S)"
+                      className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow-sm ${
+                        hasUnsavedChanges
+                          ? "bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/50"
+                          : "bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 border border-emerald-500/40"
+                      }`}
+                    >
+                      <Save size={13} className={isSaving ? "animate-spin" : ""} />
+                      <span>{isSaving ? "Guardando..." : hasUnsavedChanges ? "Guardar ●" : "Guardado ✓"}</span>
+                    </button>
 
-              <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
-
-              <button
-                onClick={centerWorkspace}
-                title="Center canvas on blocks origin"
-                className="px-2.5 py-1.5 hover:bg-gray-800 text-sky-400 hover:text-sky-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
-              >
-                <Maximize2 size={13} />
-                <span>Center</span>
-              </button>
-
-              <button
-                onClick={zoomFitWorkspace}
-                title="Zoom to fit blocks"
-                className="px-2.5 py-1.5 hover:bg-gray-800 text-teal-400 hover:text-teal-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
-              >
-                <Search size={13} />
-                <span>Fit</span>
-              </button>
-
-              <button
-                onClick={collapseAllBlocksInWorkspace}
-                title="Collapse all blocks on canvas"
-                className="px-2.5 py-1.5 hover:bg-gray-800 text-amber-400 hover:text-amber-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
-              >
-                <Minimize2 size={13} />
-                <span>Collapse</span>
-              </button>
-
-              <button
-                onClick={expandAllBlocksInWorkspace}
-                title="Expand all blocks on canvas"
-                className="px-2.5 py-1.5 hover:bg-gray-800 text-emerald-400 hover:text-emerald-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
-              >
-                <ChevronDown size={13} />
-                <span>Expand</span>
-              </button>
-
-              <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
-
-              <button
-                onClick={() => undoWorkspace(false)}
-                title="Undo last action (Ctrl+Z)"
-                className="p-1.5 hover:bg-gray-800 text-gray-300 hover:text-white rounded-lg transition cursor-pointer"
-              >
-                <Undo size={14} />
-              </button>
-
-              <button
-                onClick={clearWorkspace}
-                title="Clear entire canvas"
-                className="p-1.5 hover:bg-rose-950 text-rose-400 hover:text-rose-300 rounded-lg transition cursor-pointer"
-              >
-                <Trash2 size={14} />
-              </button>
-
-              <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
-
-              <button
-                onClick={() => {
-                  if (inspectorOpen) {
-                    setInspectorOpen(false);
-                    setInspectedBlockData(null);
-                  } else if (selectedBlockData) {
-                    isInspectingRef.current = true;
-                    setInspectedBlockData(selectedBlockData);
-                    setInspectorOpen(true);
-                    setTimeout(() => {
-                      isInspectingRef.current = false;
-                    }, 300);
-                  } else {
-                    setStatusMessage("Haz clic derecho en un bloque para inspeccionarlo");
-                  }
-                }}
-                title={inspectorOpen ? "Cerrar Inspector" : "Abrir Inspector de Bloque (o Click derecho en un bloque)"}
-                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
-                  inspectorOpen
-                    ? "bg-purple-900/60 text-purple-300 border border-purple-500/50 shadow-sm"
-                    : inspectedBlockData || selectedBlockData
-                      ? "hover:bg-gray-800 text-purple-400 hover:text-purple-300"
-                      : "hover:bg-gray-800 text-gray-400 hover:text-gray-300"
-                }`}
-              >
-                <Sliders size={13} />
-                <span>Inspector</span>
-                {(inspectedBlockData || selectedBlockData) && (
-                  <span className="text-[10px] px-1 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 max-w-[100px] truncate">
-                    {(inspectedBlockData || selectedBlockData).stepName || (inspectedBlockData || selectedBlockData).type}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setIsSplitView((prev) => !prev)}
-                title={isSplitView ? "Cerrar Vista de Código" : "Ver Código Python Generado en Vivo (Ctrl+\\)"}
-                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
-                  isSplitView
-                    ? "bg-sky-900/60 text-sky-300 border border-sky-500/50 shadow-sm"
-                    : "hover:bg-gray-800 text-sky-400 hover:text-sky-300"
-                }`}
-              >
-                <FileCode size={13} />
-                <span>Code</span>
-              </button>
-
-              <button
-                onClick={() => setShowFaqModal(true)}
-                title="Architecture Guide & FAQ"
-                className="px-2.5 py-1.5 hover:bg-purple-950/70 text-purple-400 hover:text-purple-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
-              >
-                <BookOpen size={13} />
-                <span>Guide</span>
-              </button>
-            </div>
-
-            {/* Blockly Workspace + Live Split View + Inspector Component */}
-            <div className="flex-1 w-full h-full flex overflow-hidden relative">
-              {/* Workspace Container */}
-              <div className={`h-full flex flex-col relative ${isSplitView ? "w-1/2 border-r border-[#2d2d2d]" : "w-full flex-1"}`}>
-                <BlocklyComponent
-                  onBlockSelected={handleBlockSelected}
-                  onBlockInspect={handleBlockInspect}
-                  onWorkspaceChange={handleWorkspaceChanged}
-                />
-                {/* External Code Modified Alert Banner */}
-                {externalCodeModified && (
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-amber-950/95 border border-amber-500/80 rounded-xl shadow-2xl backdrop-blur-md text-amber-200 text-xs font-medium">
-                    <AlertTriangle size={15} className="text-amber-400 shrink-0" />
-                    <span>Los archivos de código en disco se han modificado.</span>
+                    {/* Auto-Save Toggle */}
                     <button
                       onClick={() => {
-                        loadWorkspaceStateJson(externalCodeModified);
-                        setExternalCodeModified(null);
-                        setHasUnsavedChanges(false);
-                        setStatusMessage("✓ Lienzo sincronizado con los archivos en disco");
+                        const nextVal = !autoSaveEnabled;
+                        setAutoSaveEnabled(nextVal);
+                        try {
+                          localStorage.setItem("wpipe_canvas_autosave", String(nextVal));
+                        } catch {}
+                        setStatusMessage(nextVal ? "Autoguardado activado (sincronización continua)" : "Autoguardado desactivado (modo manual con Ctrl+S)");
                         setTimeout(() => setStatusMessage(""), 3000);
                       }}
-                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-md font-semibold text-[11px] flex items-center gap-1 transition shadow cursor-pointer"
+                      title={autoSaveEnabled ? "Autoguardado: ACTIVADO (Guardado continuo al mover bloques)" : "Autoguardado: DESACTIVADO (Guarda manualmente con Ctrl+S)"}
+                      className={`px-2 py-1.5 rounded-lg flex items-center gap-1 text-[11px] font-mono font-medium transition cursor-pointer border ${
+                        autoSaveEnabled
+                          ? "bg-emerald-950/60 text-emerald-400 border-emerald-600/50"
+                          : "bg-gray-800/80 text-gray-400 border-gray-700/60 hover:text-gray-300"
+                      }`}
                     >
-                      <RefreshCw size={11} />
-                      <span>Recargar en Lienzo</span>
+                      <span>Auto:</span>
+                      <span className={autoSaveEnabled ? "text-emerald-300 font-bold" : "text-gray-400"}>
+                        {autoSaveEnabled ? "ON" : "OFF"}
+                      </span>
                     </button>
+
+                    {/* Plan block counter integrated into Toolbar */}
+                    {(() => {
+                      const max = engineStatus.entitlements.max_blocks;
+                      const atLimit = max !== null && canvasBlockCount >= max;
+                      const over = max !== null && canvasBlockCount > max;
+                      const isPro = engineStatus.isPro || max === null;
+                      return (
+                        <div
+                          data-testid="block-counter"
+                          className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold border shadow-sm select-none ${
+                            isPro
+                              ? "bg-emerald-950/80 text-emerald-300 border-emerald-700/70"
+                              : over
+                                ? "bg-red-950/85 text-red-300 border-red-700/70"
+                                : atLimit
+                                  ? "bg-amber-950/85 text-amber-300 border-amber-700/70"
+                                  : "bg-slate-900/85 text-slate-200 border-slate-700/70"
+                          }`}
+                          title={
+                            isPro
+                              ? "Verified PRO license: unlimited blocks"
+                              : "Free plan limit. The local engine rejects pipelines above this limit."
+                          }
+                        >
+                          Blocks {canvasBlockCount} / {isPro ? "∞" : max} · {isPro ? "PRO" : "Free"}
+                        </div>
+                      );
+                    })()}
+
+                    <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
+
                     <button
-                      onClick={() => setExternalCodeModified(null)}
-                      title="Descartar y conservar lienzo actual"
-                      className="p-1 hover:bg-amber-900/60 text-amber-400 hover:text-amber-200 rounded transition cursor-pointer"
+                      onClick={centerWorkspace}
+                      title="Center canvas on blocks origin"
+                      className="px-2.5 py-1.5 hover:bg-gray-800 text-sky-400 hover:text-sky-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
                     >
-                      <X size={13} />
+                      <Maximize2 size={13} />
+                      <span>Center</span>
+                    </button>
+
+                    <button
+                      onClick={zoomFitWorkspace}
+                      title="Zoom to fit blocks"
+                      className="px-2.5 py-1.5 hover:bg-gray-800 text-teal-400 hover:text-teal-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
+                    >
+                      <Search size={13} />
+                      <span>Fit</span>
+                    </button>
+
+                    <button
+                      onClick={collapseAllBlocksInWorkspace}
+                      title="Collapse all blocks on canvas"
+                      className="px-2.5 py-1.5 hover:bg-gray-800 text-amber-400 hover:text-amber-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
+                    >
+                      <Minimize2 size={13} />
+                      <span>Collapse</span>
+                    </button>
+
+                    <button
+                      onClick={expandAllBlocksInWorkspace}
+                      title="Expand all blocks on canvas"
+                      className="px-2.5 py-1.5 hover:bg-gray-800 text-emerald-400 hover:text-emerald-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
+                    >
+                      <ChevronDown size={13} />
+                      <span>Expand</span>
+                    </button>
+
+                    <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
+
+                    <button
+                      onClick={() => undoWorkspace(false)}
+                      title="Undo last action (Ctrl+Z)"
+                      className="p-1.5 hover:bg-gray-800 text-gray-300 hover:text-white rounded-lg transition cursor-pointer"
+                    >
+                      <Undo size={14} />
+                    </button>
+
+                    <button
+                      onClick={clearWorkspace}
+                      title="Clear entire canvas"
+                      className="p-1.5 hover:bg-rose-950 text-rose-400 hover:text-rose-300 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+
+                    <div className="w-[1px] h-4 bg-gray-800 mx-0.5" />
+
+                    <button
+                      onClick={() => {
+                        if (inspectorOpen) {
+                          setInspectorOpen(false);
+                          setInspectedBlockData(null);
+                        } else if (selectedBlockData) {
+                          isInspectingRef.current = true;
+                          setInspectedBlockData(selectedBlockData);
+                          setInspectorOpen(true);
+                          setTimeout(() => {
+                            isInspectingRef.current = false;
+                          }, 300);
+                        } else {
+                          setStatusMessage("Haz clic derecho en un bloque para inspeccionarlo");
+                        }
+                      }}
+                      title={inspectorOpen ? "Cerrar Inspector" : "Abrir Inspector de Bloque (o Click derecho en un bloque)"}
+                      className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
+                        inspectorOpen
+                          ? "bg-purple-900/60 text-purple-300 border border-purple-500/50 shadow-sm"
+                          : inspectedBlockData || selectedBlockData
+                            ? "hover:bg-gray-800 text-purple-400 hover:text-purple-300"
+                            : "hover:bg-gray-800 text-gray-400 hover:text-gray-300"
+                      }`}
+                    >
+                      <Sliders size={13} />
+                      <span>Inspector</span>
+                      {(inspectedBlockData || selectedBlockData) && (
+                        <span className="text-[10px] px-1 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 max-w-[100px] truncate">
+                          {(inspectedBlockData || selectedBlockData).stepName || (inspectedBlockData || selectedBlockData).type}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setIsSplitView((prev) => !prev)}
+                      title={isSplitView ? "Cerrar Vista de Código" : "Ver Código Python Generado en Vivo (Ctrl+\\)"}
+                      className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer ${
+                        isSplitView
+                          ? "bg-sky-900/60 text-sky-300 border border-sky-500/50 shadow-sm"
+                          : "hover:bg-gray-800 text-sky-400 hover:text-sky-300"
+                      }`}
+                    >
+                      <FileCode size={13} />
+                      <span>Code</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowFaqModal(true)}
+                      title="Architecture Guide & FAQ"
+                      className="px-2.5 py-1.5 hover:bg-purple-950/70 text-purple-400 hover:text-purple-300 rounded-lg flex items-center gap-1 text-xs font-semibold transition cursor-pointer"
+                    >
+                      <BookOpen size={13} />
+                      <span>Guide</span>
                     </button>
                   </div>
-                )}
-                {/* Plan block counter (display only; the engine enforces the signed limit) */}
-                {(() => {
-                  const max = engineStatus.entitlements.max_blocks;
-                  const atLimit = max !== null && canvasBlockCount >= max;
-                  const over = max !== null && canvasBlockCount > max;
-                  return (
-                    <div
-                      data-testid="block-counter"
-                      className={`absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border shadow-lg backdrop-blur-sm pointer-events-none ${
-                        max === null
-                          ? "bg-emerald-950/80 text-emerald-300 border-emerald-700/70"
-                          : over
-                            ? "bg-red-950/85 text-red-300 border-red-700/70"
-                            : atLimit
-                              ? "bg-amber-950/85 text-amber-300 border-amber-700/70"
-                              : "bg-slate-900/85 text-slate-200 border-slate-700/70"
-                      }`}
-                      title={
-                        max === null
-                          ? "Verified PRO license: unlimited blocks"
-                          : "Free plan limit. The local engine rejects pipelines above this limit."
-                      }
-                    >
-                      Blocks {canvasBlockCount} / {max === null ? "∞" : max} · {max === null ? "PRO" : engineStatus.connected ? "Free" : "Free · No Engine"}
+
+                  {/* External Code Modified Alert Banner */}
+                  {externalCodeModified && (
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-amber-950/95 border border-amber-500/80 rounded-xl shadow-2xl backdrop-blur-md text-amber-200 text-xs font-medium">
+                      <AlertTriangle size={15} className="text-amber-400 shrink-0" />
+                      <span>Los archivos de código en disco se han modificado.</span>
+                      <button
+                        onClick={() => {
+                          loadWorkspaceStateJson(externalCodeModified);
+                          setExternalCodeModified(null);
+                          setHasUnsavedChanges(false);
+                          setStatusMessage("✓ Lienzo sincronizado con los archivos en disco");
+                          setTimeout(() => setStatusMessage(""), 3000);
+                        }}
+                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-md font-semibold text-[11px] flex items-center gap-1 transition shadow cursor-pointer"
+                      >
+                        <RefreshCw size={11} />
+                        <span>Recargar en Lienzo</span>
+                      </button>
+                      <button
+                        onClick={() => setExternalCodeModified(null)}
+                        title="Descartar y conservar lienzo actual"
+                        className="p-1 hover:bg-amber-900/60 text-amber-400 hover:text-amber-200 rounded transition cursor-pointer"
+                      >
+                        <X size={13} />
+                      </button>
                     </div>
-                  );
-                })()}
-              </div>
+                  )}
+                </div>
 
               {/* Live Split View (Canvas + Python Code side-by-side) */}
               {isSplitView && (
