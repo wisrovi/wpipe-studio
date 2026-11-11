@@ -253,3 +253,31 @@ def test_ast_compiler_multi_pipeline_without_triggers():
     assert '"main": pipe_main' in pipe_code
     assert '"agua_step": pipe_agua_step' in pipe_code
 
+
+def test_ast_compiler_kafka_trigger_and_response():
+    """Verify that Kafka trigger generates WKafka entrypoint, settings and requirements."""
+    compiler = ASTCompiler()
+    canvas = {
+        "nodes": [
+            {"id": "t1", "data": {"node_type": "trigger", "trigger_type": "kafka", "trigger_param": "pipeline.events.in"}},
+            {"id": "s1", "data": {"node_type": "step", "namespace": "wpipe_steps.connectivity", "func_name": "HttpRequest", "label": "FetchAPI"}},
+            {"id": "r1", "data": {"node_type": "response", "response_type": "kafka_publish", "response_param": "pipeline.events.out"}},
+        ],
+        "edges": [{"source": "t1", "target": "s1"}, {"source": "s1", "target": "r1"}]
+    }
+    files = compiler.compile_canvas(canvas, project_name="kafka_worker_service")
+    assert "app/main.py" in files
+    assert "app/test/test_consumer.py" in files
+    assert "app/test/test_api.py" not in files
+    assert "requirements.txt" in files
+    assert "wkafka>=1.0.0" in files["requirements.txt"]
+
+    main_py = files["app/main.py"]
+    assert "from wkafka import WKafka" in main_py
+    assert "@kafka.consumer" in main_py
+    assert "kafka.run_consumers(block=True)" in main_py
+    assert "with kafka.producer() as producer:" in main_py
+
+    config_yaml = files["app/config/config.yaml"]
+    assert "pipeline.events.in" in config_yaml
+    assert "pipeline.events.out" in config_yaml
