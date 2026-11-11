@@ -1,5 +1,5 @@
 # ==============================================================================
-# WPipe Studio — Canonical 9-Target Makefile & Automation Suite
+# WPipe Studio — Canonical 9-Target Makefile & Architecture Management Suite
 # ==============================================================================
 
 .PHONY: help install dev build up down logs test lint format clean
@@ -12,10 +12,10 @@ help:
 	@echo "║                       WPipe Studio — Management Suite                    ║"
 	@echo "╚══════════════════════════════════════════════════════════════════════════╝"
 	@echo "  make help       - Display this assistance guide"
-	@echo "  make install    - Install backend and extension dependencies"
+	@echo "  make install    - Install backend, extension, and UI dependencies"
 	@echo "  make dev        - Launch development stack in background"
-	@echo "  make build      - Compile extension and build Docker containers"
-	@echo "  make up         - Start full compose stack"
+	@echo "  make build      - Compile VS Code extension and build Docker images"
+	@echo "  make up         - Start compose stack"
 	@echo "  make down       - Tear down compose stack"
 	@echo "  make logs       - Follow real-time application logs"
 	@echo "  make test       - Execute full test battery inside Docker sandbox"
@@ -24,8 +24,9 @@ help:
 	@echo "  make clean      - Prune temporary files, pycache, and build artifacts"
 
 install:
-	@echo "==> Installing Python and Node dependencies..."
-	cd vscode-extension/extension && npm install
+	@echo "==> Installing Node dependencies for UI and VS Code extension..."
+	cd ui/extension/vscode && npm install
+	cd ui/web/studio-canvas && npm install || true
 	@echo "==> Dependencies installed."
 
 dev:
@@ -33,7 +34,7 @@ dev:
 
 build:
 	@echo "==> Building VS Code extension..."
-	cd vscode-extension/extension && npm run compile && npx vsce package --allow-missing-repository
+	cd ui/extension/vscode && npm run compile && npx vsce package --allow-missing-repository
 	@echo "==> Building Docker images..."
 	$(DOCKER_COMPOSE) build
 
@@ -52,13 +53,13 @@ test:
 
 lint:
 	@echo "==> Executing linters (ruff, pylint)..."
-	@if command -v ruff >/dev/null 2>&1; then ruff check backend/; else echo "ruff not found, running via docker"; fi
-	@if command -v pylint >/dev/null 2>&1; then pylint --rcfile=.pylintrc backend/app; fi
+	@if command -v ruff >/dev/null 2>&1; then ruff check backend/ pipelines/; else echo "ruff not found in host PATH"; fi
+	@if command -v pylint >/dev/null 2>&1; then pylint --rcfile=.pylintrc backend/app pipelines/; fi
 
 format:
 	@echo "==> Auto-formatting codebase..."
-	@if command -v black >/dev/null 2>&1; then black --line-length 100 backend/ vscode-extension/; fi
-	@if command -v isort >/dev/null 2>&1; then isort backend/ vscode-extension/; fi
+	@if command -v black >/dev/null 2>&1; then black --line-length 100 backend/ pipelines/ ui/extension/vscode/; fi
+	@if command -v isort >/dev/null 2>&1; then isort backend/ pipelines/; fi
 
 clean:
 	@echo "==> Cleaning cache and temporary files..."

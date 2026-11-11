@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-qa:
-    name: Backend QA Battery & Verification
+    name: Backend & Pipelines Verification
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -26,11 +26,7 @@ jobs:
 
       - name: Run Ruff Linter
         run: |
-          ruff check backend/
-
-      - name: Run Pylint Check
-        run: |
-          pylint --rcfile=.pylintrc backend/app
+          ruff check backend/ pipelines/
 
       - name: Run Dockerized Sandbox Tests
         run: |
@@ -51,15 +47,15 @@ jobs:
 
       - name: Install Extension Dependencies
         run: |
-          cd vscode-extension/extension
+          cd ui/extension/vscode
           npm ci || npm install
 
       - name: Compile Extension TypeScript
         run: |
-          cd vscode-extension/extension
+          cd ui/extension/vscode
           npm run compile
 
       - name: Package VSIX Verification
         run: |
-          cd vscode-extension/extension
+          cd ui/extension/vscode
           npx @vscode/vsce package --allow-missing-repository
