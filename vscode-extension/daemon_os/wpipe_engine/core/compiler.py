@@ -2263,8 +2263,8 @@ explicit_package_bases = true
         }
 
         # For modular pipelines (1:1 mapping), also expose the dedicated pipeline module
-        if project_name not in ("main_pipeline", "pipelines", "main"):
-            ident = sanitize_ident(project_name)
+        ident = sanitize_ident(project_name)
+        if ident not in ("main_pipeline", "pipelines", "pipeline", "main"):
             raw_files[f"app/{ident}.py"] = pipelines_py
 
         # Include standard built-in states only when actually referenced in pipeline
