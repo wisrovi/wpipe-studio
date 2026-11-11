@@ -286,7 +286,7 @@ class ASTCompiler:
             if else_block:
                 e_entry, e_exits = process_block(else_block, blk_id, "else_body")
                 edges.append({"id": f"e_{blk_id}_{e_entry}", "source": blk_id, "target": e_entry})
-                branch_exits.extend(else_exits)
+                branch_exits.extend(e_exits)
 
             final_exits = branch_exits
             nxt = blk.get("next", {}).get("block")
