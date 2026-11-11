@@ -1,0 +1,19 @@
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    "node_modules",
+    ".venv",
+    "frontend",
+    "promo-video"
+]
+
+[lint]
+select = ["E", "F", "I", "W", "B"]
+ignore = [
+    "E501", # Line length handled by formatter
+    "B008", # Do not perform function call in argument defaults (FastAPI Depends)
+]

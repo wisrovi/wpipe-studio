@@ -231,3 +231,9 @@ __marimo__/
 backend/data/
 media/*
 !media/.gitkeep
+
+# Runtime outputs and logs
+output/*.db
+output/*.sqlite*
+logs/*.log
+!media/.gitkeep

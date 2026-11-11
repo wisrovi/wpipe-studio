@@ -1,0 +1,18 @@
+[MAIN]
+max-line-length = 100
+py-version = 3.11
+ignore = .git,__pycache__,dist,build,node_modules,.venv,frontend,promo-video
+disable = 
+    C0114, # missing-module-docstring
+    C0115, # missing-class-docstring
+    C0116, # missing-function-docstring
+    R0903, # too-few-public-methods
+    W0718, # broad-exception-caught
+
+[FORMAT]
+max-line-length = 100
+
+[DESIGN]
+max-args = 8
+max-attributes = 12
+max-locals = 15

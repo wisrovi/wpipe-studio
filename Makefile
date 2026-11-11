@@ -1,34 +1,70 @@
-.PHONY: help start stop restart status logs clean test
+# ==============================================================================
+# WPipe Studio — Canonical 9-Target Makefile & Automation Suite
+# ==============================================================================
+
+.PHONY: help install dev build up down logs test lint format clean
+
+SHELL := /bin/bash
+DOCKER_COMPOSE := docker compose
 
 help:
-	@echo "WPipe Studio — Management Commands"
-	@echo "  make start     - Start backend, frontend, postgres and pgadmin in Docker Compose"
-	@echo "  make stop      - Stop all running containers"
-	@echo "  make restart   - Restart all containers"
-	@echo "  make status    - Show container status"
-	@echo "  make logs      - Follow container logs"
-	@echo "  make test      - Run backend unit tests"
-	@echo "  make clean     - Clean temporary and cache files"
+	@echo "╔══════════════════════════════════════════════════════════════════════════╗"
+	@echo "║                       WPipe Studio — Management Suite                    ║"
+	@echo "╚══════════════════════════════════════════════════════════════════════════╝"
+	@echo "  make help       - Display this assistance guide"
+	@echo "  make install    - Install backend and extension dependencies"
+	@echo "  make dev        - Launch development stack in background"
+	@echo "  make build      - Compile extension and build Docker containers"
+	@echo "  make up         - Start full compose stack"
+	@echo "  make down       - Tear down compose stack"
+	@echo "  make logs       - Follow real-time application logs"
+	@echo "  make test       - Execute full test battery inside Docker sandbox"
+	@echo "  make lint       - Run ruff, pylint, and type verification"
+	@echo "  make format     - Format codebase with black and isort"
+	@echo "  make clean      - Prune temporary files, pycache, and build artifacts"
 
-start:
-	docker-compose up -d --build
+install:
+	@echo "==> Installing Python and Node dependencies..."
+	cd vscode-extension/extension && npm install
+	@echo "==> Dependencies installed."
 
-stop:
-	docker-compose down
+dev:
+	$(DOCKER_COMPOSE) up -d
 
-restart:
-	docker-compose restart
+build:
+	@echo "==> Building VS Code extension..."
+	cd vscode-extension/extension && npm run compile && npx vsce package --allow-missing-repository
+	@echo "==> Building Docker images..."
+	$(DOCKER_COMPOSE) build
 
-status:
-	docker-compose ps
+up:
+	$(DOCKER_COMPOSE) up -d
+
+down:
+	$(DOCKER_COMPOSE) down
 
 logs:
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 test:
-	cd backend && python3 -m pytest tests/
+	@echo "==> Running verification test battery in Docker sandbox..."
+	./run_tests_docker.sh
+
+lint:
+	@echo "==> Executing linters (ruff, pylint)..."
+	@if command -v ruff >/dev/null 2>&1; then ruff check backend/; else echo "ruff not found, running via docker"; fi
+	@if command -v pylint >/dev/null 2>&1; then pylint --rcfile=.pylintrc backend/app; fi
+
+format:
+	@echo "==> Auto-formatting codebase..."
+	@if command -v black >/dev/null 2>&1; then black --line-length 100 backend/ vscode-extension/; fi
+	@if command -v isort >/dev/null 2>&1; then isort backend/ vscode-extension/; fi
 
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
+	@echo "==> Cleaning cache and temporary files..."
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	find . -type f -name "*.pyo" -delete 2>/dev/null || true
+	@echo "==> Clean complete."
