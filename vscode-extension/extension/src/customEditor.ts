@@ -714,6 +714,29 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
                     if (isManual) {
                       vscode.window.showInformationMessage(`💾 Pipeline guardado y microservicio compilado (${projectName})`);
                     }
+                  } else {
+                    const resObj = res as any;
+                    if (resObj && resObj.error === "LIMIT_EXCEEDED") {
+                      const upgradeAction = "Activar Licencia Pro";
+                      const msg = `🔒 Límite del Plan Free: ${resObj.message || "Límite de bloques excedido (máx 5 bloques en Free)"}`;
+                      vscode.window.showWarningMessage(msg, upgradeAction, "Cerrar").then((selection) => {
+                        if (selection === upgradeAction) {
+                          vscode.commands.executeCommand("wpipe.activateLicense");
+                        }
+                      });
+                    } else if (isManual) {
+                      const errMsg = resObj?.message || resObj?.error || "Error al compilar microservicio";
+                      vscode.window.showErrorMessage(`❌ Error al compilar microservicio: ${errMsg}`);
+                    }
+
+                    try {
+                      panel.webview.postMessage({
+                        command: "compileError",
+                        error: resObj?.error || "COMPILATION_FAILED",
+                        message: resObj?.message || "Compilation failed",
+                        details: resObj?.details,
+                      });
+                    } catch {}
                   }
                 } catch (err) {
                   console.warn("Auto-compile on saveCanvas:", err);
