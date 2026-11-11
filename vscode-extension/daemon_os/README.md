@@ -1,96 +1,113 @@
-# wpipe-engine — Daemon Nativo de Sistema & Motor Local
+# wpipe-engine — Native System Daemon & Local Core Engine
 
-Motor nativo del sistema y servidor de licencias local para **WPipe Studio (wisrovi SUITE)**. Ejecuta la compilación de pipelines, la verificación criptográfica de arrendamientos (*leases*) y el control de límites freemium en la máquina del desarrollador.
-
-> **Autor**: William Rodriguez (AI Leader & Solutions Architect — [wisrovi.dev](https://wisrovi.dev))  
-> **Licencia**: Propietaria (wisrovi)
+> **High-Performance Local Execution Engine, AST Compiler & Entitlement Enforcer for WPipe Studio (wisrovi SUITE).**
 
 ---
 
-## Tecnologías y Librerías Relevantes
+## Overview
 
-| Tecnología | Rol en el Daemon |
-|---|---|
-| **Python 3.11+ / CPython** | Runtime principal para el motor de pipelines y generación de código AST. |
-| **Cryptography (PyCA)** | Verificación de firmas asimétricas Ed25519 sobre tokens compactos JWS/JWT. |
-| **Unix Domain Sockets (`socket.AF_UNIX`)** | Canal IPC local de ultra-baja latencia entre VS Code y el daemon sin exponer puertos de red. |
-| **HTTP Localhost (`127.0.0.1:49152`)** | Transporte IPC alternativo y Web-to-Local Bridge con W3C Private Network Access (PNA) para la PWA de `studio.wisrovi.dev`. |
-| **Nuitka / PyInstaller** | Compilación anticipada (AOT) a binario C cerrado para protección estricta contra ingeniería inversa. |
-| **Pytest** | Suite de pruebas unitarias automatizadas para licencias, cuotas freemium y compilación. |
+`wpipe-engine` is the standalone, native system daemon and local intelligence core of **WPipe Studio**. It handles topological DAG resolution, AST-driven Python microservice compilation, real-time step simulation, and cryptographic freemium entitlement enforcement directly on the developer's workstation without cloud latency or third-party server costs.
 
 ---
 
-## Capacidades Principales
+## Key Technologies and Libraries
 
-1. **Hardware Machine Fingerprinting & Floating Seats**:
-   - Genera una huella SHA-256 reproducible a partir del UUID de la placa base, ID de CPU y dirección MAC.
-   - Es agnóstica del usuario del SO: múltiples cuentas locales (`/home/juan`, `/home/maria`) en el mismo PC consumen **1 solo asiento**.
-   - Hilo en segundo plano que envía *heartbeats* cada 30 min para renovar el TTL de 2 horas.
-   - En caso de concurrencia excedida (`409 SEATS_EXCEEDED`), degrada elegantemente a la Capa Free (≤ 5 bloques) con enlace a `portal.wisrovi.dev`.
-2. **Enforcer Freemium Estricto**:
-   - **Plan Free / Community**: Permite hasta **5 bloques** por pipeline. Bloquea el uso de bloques Pro (`Parallel`, `Background`, `AI Step`) con código `PRO_FEATURE_REQUIRED` y enlace a `wisrovi.dev`.
-   - **Plan Pro**: Desbloquea bloques ilimitados, concurrencia, Smart AST code merge y depuración paso a paso.
-3. **Smart AST Code Merge**:
-   - Preserva los bloques `# >>> [WPIPE:CUSTOM_IMPORTS]` y `# >>> [WPIPE:CUSTOM_LOGIC]` escritos manualmente por el usuario.
-4. **Validación Offline con Período de Gracia**:
-   - Valida el token firmado sin necesidad de conexión constante a internet, con 7 días de gracia adicionales.
-5. **Web-to-Local Bridge con W3C Private Network Access (PNA)**:
-   - Permite que la Progressive Web App (`https://studio.wisrovi.dev` y `https://wpipe-studio.pages.dev`) invoque al daemon local en `http://127.0.0.1:49152` mediante cabeceras preflight seguras (`Access-Control-Allow-Private-Network: true`).
-   - Sirve tokens JWS firmados con curva Ed25519 en `/v1/license/status` para que el navegador valide criptográficamente la autenticidad del plan Pro con la WebCrypto API.
+| Category | Technology / Library | Role & Details |
+|---|---|---|
+| **Runtime** | **Python 3.11+ / CPython** | Core execution runtime for AST transformation, dependency analysis, and simulation. |
+| **Pipeline Core** | **WPipe** (`>=2.5.13`) & **wdecorators** | Native pipeline runtime engine, execution monitoring, and step orchestration. |
+| **Streaming Integration** | **`wkafka`** (`>=1.0.0`) | Official corporate library for Kafka streaming consumers, producers, and serializers. |
+| **Persistence (Tracking)**| **`wsqlite`** & SQLite3 | Local forensic metrics database (`tracking.db`) recording step runtimes and RAM consumption. |
+| **Cryptography** | **PyCA Cryptography** (`cryptography`) | Asymmetric Ed25519 signature verification on compact JWS lease tokens with machine fingerprint binding. |
+| **IPC Protocols** | **Unix Domain Sockets** (`socket.AF_UNIX`) & **HTTP PNA** | High-throughput local socket communication (`/tmp/wpipe.sock`) and W3C PNA HTTP server (`127.0.0.1:49152`). |
+| **Code Formatting** | **Black** & **isort** | Deterministic formatting applied server-side to generated Python microservices. |
+| **Binary Packaging** | **PyInstaller** / **Nuitka** | Compilation into a closed, standalone native executable (`dist/wpipe-engine`). |
+| **Testing** | **pytest** & **pytest-cov** | 56 automated unit, security, and penetration test cases. |
 
 ---
 
-## Tamper-Proof Plan Enforcement
+## Architecture & Directory Layout
 
-The engine is the **single enforcement point** for Free vs Pro limits. Restrictions shown in the browser are UX only; disabling them in DevTools yields nothing, because every value-producing endpoint is gated server-side by `core/limiter.enforce_entitlements`:
-
-| Endpoint | Gate |
-|---|---|
-| `POST /api/v1/pipeline/compile` · `/transform` | Block count + Pro block families |
-| `POST /api/v1/pipeline/simulate` | Block count + Pro blocks + `real_simulation` |
-| `POST /api/v1/projects` · `PUT /api/v1/projects/{id}` | Block count + Pro blocks + `max_projects`; files are always regenerated by the engine (client edits kept only for engine-generated paths, path traversal rejected) |
-| `POST /api/v1/projects/{id}/duplicate` | `max_projects` |
-| `POST /api/v1/pipeline/test` | Restricted to `~/.wpipe/workspaces` |
-
-- **Entitlements source**: `core/entitlements.py` resolves limits **only** from an Ed25519-verified lease token bound to this machine (`mfp` is mandatory). The signed `ent` claim is issued by the Cloudflare Worker from the D1 `plan_entitlements` table. Request-body flags such as `"is_pro": true` are ignored. Without a valid token the hardcoded Free defaults apply (5 blocks, no Parallel/Background/AI Step).
-- **Shared classifier**: `classify_node` / `is_ai_step` are used by both the limiter and the compiler, so a node can never be judged one way and rendered another.
-- **Identity**: no hardcoded admin. `/api/v1/auth/me` returns the verified license holder; password login (`/auth/login`) returns `410` and `/auth/users` was removed.
-- **Capabilities**: `GET /v1/capabilities` exposes the effective entitlements plus the signed token so the browser can re-verify it with WebCrypto.
-
-## Comandos CLI
-
-```bash
-# Ver estado actual de la licencia y cuotas
-./wpipe_engine/main.py status
-
-# Ver el Machine Fingerprint del equipo
-./wpipe_engine/main.py fingerprint
-
-# Activar una clave de licencia contra Cloudflare Edge (api.wisrovi.dev)
-./wpipe_engine/main.py activate WPIPE-PRO-DEMO-TEST-KEY-2026
-
-# Iniciar el daemon IPC en segundo plano
-./wpipe_engine/main.py daemon --socket /tmp/wpipe.sock
+```
+vscode-extension/daemon_os/
+├── wpipe_engine/
+│   ├── core/
+│   │   ├── compiler.py        # AST pipeline compiler, code generation, and merge engine
+│   │   ├── entitlements.py    # Ed25519 cryptographic token parser and plan validator
+│   │   ├── licensing.py       # Floating seats and hardware machine fingerprinting
+│   │   ├── limiter.py         # Plan quota guard and node classifier (Free vs Pro)
+│   │   ├── runner.py          # Step-by-step pipeline execution and live simulation
+│   │   └── workspace.py       # Local file management under ~/.wpipe/workspaces
+│   ├── ipc/
+│   │   └── server.py          # Dual Unix Socket & HTTP server implementation
+│   ├── main.py                # Command-line interface and daemon runner
+│   └── canvas_static/         # Embedded PWA web UI assets served locally
+├── tests/                     # Unit and security test suite
+├── build.sh                   # Native binary compilation script (PyInstaller)
+├── coverage.sh                # Test coverage execution script
+└── wpipe-engine.spec          # PyInstaller bundle specification
 ```
 
 ---
 
-## Ejecución de Pruebas Unitarias y Cobertura
+## Core Capabilities
+
+1. **Topological Pipeline Compilation**:
+   - Compiles visual Canvas IR into enterprise-grade Python microservices conforming strictly to `wpipe-mcp` standards.
+   - Generates entrypoints for **FastAPI REST API** (`/run`) and **WKafka Streaming Workers** (`@kafka.consumer`).
+   - Generates strict Pydantic v2 DTOs, class-based `@step` definitions, integration tests (`test_pipeline.py`, `test_api.py`, `test_consumer.py`), Dockerfiles, and Makefiles.
+2. **Smart AST Code Merge**:
+   - Preserves user-written custom imports (`# >>> [WPIPE:CUSTOM_IMPORTS]`) and logic (`# >>> [WPIPE:CUSTOM_LOGIC]`) across repeated visual re-compilations.
+3. **Hardware Machine Fingerprinting & Floating Seats**:
+   - Derives a deterministic SHA-256 fingerprint from motherboard UUID, CPU ID, and MAC address.
+   - Multiple local OS users on the same machine share 1 single seat.
+4. **Tamper-Proof Plan Enforcement**:
+   - The engine is the **single enforcement point**. Limits are checked server-side using signed Ed25519 tokens.
+   - **Free Plan**: Up to 5 blocks per pipeline.
+   - **Pro Plan**: Unlimited blocks, advanced control blocks (`Parallel`, `Background`, `AI Step`), and live simulation.
+
+---
+
+## CLI Usage
 
 ```bash
-# Ejecutar suite de pruebas con pytest
-pytest tests/ -v
+# Check daemon status and active license
+wpipe-engine status
 
-# Calcular cobertura de código
+# Display hardware machine fingerprint
+wpipe-engine fingerprint
+
+# Activate a Pro license key against Cloudflare Edge (api.wisrovi.dev)
+wpipe-engine activate WPIPE-PRO-KEY-xxxx-xxxx
+
+# Start the background daemon
+wpipe-engine daemon --socket /tmp/wpipe.sock
+```
+
+---
+
+## Running Tests and Building
+
+### Run Pytest Suite
+```bash
+pytest tests/ -v
+```
+
+### Calculate Test Coverage
+```bash
 ./coverage.sh
 ```
-The suite contains 50 tests: Ed25519 signature verification, tampered tokens, Free/Pro limits, AST code preservation, penetration tests (`test_security.py`) and adversarial entitlement tests against a live HTTP engine (`test_entitlements.py`).
 
----
-
-## Compilación a Binario Cerrado
-
+### Compile Native Binary
 ```bash
 ./build.sh
 ```
-Genera el binario ejecutable `dist/wpipe-engine` para distribución en Cloudflare R2 (`downloads.wisrovi.dev`).
+Produces the standalone native binary in `dist/wpipe-engine`.
+
+---
+
+## ⚖️ Copyright & Attribution
+
+- **Platform**: [WPipe Studio](https://github.com/wisrovi/wpipe-studio) (wisrovi SUITE)
+- **Author**: **William Rodriguez** ([wisrovi.dev](https://wisrovi.dev)) — AI Leader & Solutions Architect
+- **Copyright © 2026 wisrovi ([wisrovi.dev](https://wisrovi.dev)). All Rights Reserved.**
