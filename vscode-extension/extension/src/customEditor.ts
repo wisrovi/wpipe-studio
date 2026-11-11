@@ -665,14 +665,19 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
                       }
                     }
 
-                    // 2. Persist microservice files into the workspace directory
+                    // 2. Persist microservice files into the workspace directory with change confirmation
+                    let overwriteAll = false;
+                    let skipAll = false;
+
                     for (const [relPath, content] of Object.entries(filesMap)) {
                       if (typeof content !== "string" || !content.trim()) continue;
 
                       const targetUri = vscode.Uri.file(path.join(wsFolder.uri.fsPath, relPath));
                       let fileAlreadyExists = false;
+                      let existingContent = "";
                       try {
-                        await vscode.workspace.fs.stat(targetUri);
+                        const existingBytes = await vscode.workspace.fs.readFile(targetUri);
+                        existingContent = Buffer.from(existingBytes).toString("utf8");
                         fileAlreadyExists = true;
                       } catch {}
 
@@ -690,26 +695,62 @@ export class WPipeCanvasEditorProvider implements vscode.CustomTextEditorProvide
                         relPath.startsWith("app/dto/") ||
                         relPath.startsWith("app/test/");
 
-                      // Write derived pipeline/state/dto/test files or any missing project infrastructure files
-                      if (isDerivedFile || !fileAlreadyExists) {
-                        await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(targetUri.fsPath)));
-                        await vscode.workspace.fs.writeFile(targetUri, Buffer.from(content as string, "utf8"));
+                      // Only consider files that are derived or completely missing
+                      if (!isDerivedFile && fileAlreadyExists) {
+                        continue;
+                      }
 
-                        // Also live-update any currently open editor tabs in VS Code for targetUri
-                        for (const openDoc of vscode.workspace.textDocuments) {
-                          if (openDoc.uri.fsPath === targetUri.fsPath && !openDoc.isClosed) {
-                            const currentText = openDoc.getText();
-                            if (currentText !== content) {
-                              try {
-                                const edit = new vscode.WorkspaceEdit();
-                                const fullRange = new vscode.Range(
-                                  openDoc.positionAt(0),
-                                  openDoc.positionAt(currentText.length)
-                                );
-                                edit.replace(openDoc.uri, fullRange, content as string);
-                                await vscode.workspace.applyEdit(edit);
-                              } catch {}
-                            }
+                      // If file exists and content is identical, nothing to do
+                      if (fileAlreadyExists && existingContent.trim() === content.trim()) {
+                        continue;
+                      }
+
+                      // If file already exists and has different content, ask user before overwriting (unless pipeline file or user picked All)
+                      if (fileAlreadyExists && !isPipelineFile) {
+                        if (skipAll) {
+                          continue;
+                        }
+
+                        if (!overwriteAll) {
+                          const action = await vscode.window.showInformationMessage(
+                            `⚠️ El archivo "${relPath}" ya existe con contenido distinto. ¿Deseas sobrescribirlo con la nueva configuración del pipeline?`,
+                            { modal: false },
+                            "Sobrescribir",
+                            "Omitir",
+                            "Sobrescribir todos",
+                            "Omitir todos"
+                          );
+
+                          if (action === "Sobrescribir todos") {
+                            overwriteAll = true;
+                          } else if (action === "Omitir todos") {
+                            skipAll = true;
+                            continue;
+                          } else if (action !== "Sobrescribir") {
+                            // User clicked "Omitir" or dismissed notification
+                            continue;
+                          }
+                        }
+                      }
+
+                      // Write the file
+                      await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(targetUri.fsPath)));
+                      await vscode.workspace.fs.writeFile(targetUri, Buffer.from(content as string, "utf8"));
+
+                      // Also live-update any currently open editor tabs in VS Code for targetUri
+                      for (const openDoc of vscode.workspace.textDocuments) {
+                        if (openDoc.uri.fsPath === targetUri.fsPath && !openDoc.isClosed) {
+                          const currentText = openDoc.getText();
+                          if (currentText !== content) {
+                            try {
+                              const edit = new vscode.WorkspaceEdit();
+                              const fullRange = new vscode.Range(
+                                openDoc.positionAt(0),
+                                openDoc.positionAt(currentText.length)
+                              );
+                              edit.replace(openDoc.uri, fullRange, content as string);
+                              await vscode.workspace.applyEdit(edit);
+                            } catch {}
                           }
                         }
                       }
