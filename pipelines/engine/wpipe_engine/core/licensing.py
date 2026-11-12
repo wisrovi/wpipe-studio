@@ -1,8 +1,9 @@
-from __future__ import annotations
 """WPipe Engine - Cryptographic Licensing & Machine Fingerprinting
 Verifies Ed25519 lease tokens issued by api.wisrovi.dev (Cloudflare Edge).
 Author: William Rodriguez (wisrovi.dev)
 """
+
+from __future__ import annotations
 
 import base64
 import hashlib
@@ -10,17 +11,15 @@ import json
 import os
 import platform
 import socket
+import ssl
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from cryptography.hazmat.primitives.asymmetric import ed25519
-
-import ssl
-import threading
-
 from wpipe_engine.core.entitlements import (
     FREE_ENTITLEMENTS,
     is_unlimited,
@@ -302,7 +301,7 @@ class LicenseManager:
                 headers={"Content-Type": "application/json", "User-Agent": "wpipe-engine/1.0.0"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=7, context=_get_ssl_context()) as resp:
+            with urllib.request.urlopen(req, timeout=7, context=_get_ssl_context()):
                 data.pop("lease_id", None)
                 data.pop("lease_token", None)
                 self.license_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -388,8 +387,8 @@ class LicenseManager:
 
     def activate_with_key(self, license_key: str, hostname: Optional[str] = None) -> tuple[bool, str]:
         """Activate license key against Cloudflare Edge API and store lease token locally."""
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         clean_key = license_key.strip().upper()
         mfp = compute_machine_fingerprint()
