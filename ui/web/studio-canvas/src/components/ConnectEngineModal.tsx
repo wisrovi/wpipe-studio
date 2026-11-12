@@ -36,7 +36,7 @@ export const ConnectEngineModal: React.FC<ConnectEngineModalProps> = ({
   if (!isOpen) return null;
 
   const terminalCommand = `~/.wpipe/bin/wpipe-engine daemon`;
-  const vsCodeDeepLink = `vscode://wisrovi.wpipe-studio-vscode/open`;
+  const vsCodeDeepLink = `vscode://wpipe.wpipe-vscode/open`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(terminalCommand);
