@@ -79,10 +79,10 @@ cp .env.example .env
 ```
 
 Key variables:
-- `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID (`e3a420c454b6c6ca891b31aea00ac53f`).
-- `CLOUDFLARE_D1_DATABASE_ID`: D1 database ID (`44bf0372-587d-446d-84c3-1153c4183b99`).
+- `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID (`<your_cloudflare_account_id>`).
+- `CLOUDFLARE_D1_DATABASE_ID`: D1 database ID (`<your_cloudflare_d1_database_id>`).
 - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token with `D1:Edit` permissions.
-- `ADMIN_PASSWORD`: Access gate password (default: `wisrovi2026`).
+- `ADMIN_PASSWORD`: Access gate password configured via `ADMIN_PASSWORD` environment variable.
 - `API_BASE_URL`: Cloudflare Worker API URL (`https://api.wisrovi.dev`).
 
 ### 2. Start the Service
