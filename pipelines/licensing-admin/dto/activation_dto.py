@@ -3,6 +3,7 @@ Author: William Rodriguez (wisrovi.dev)
 """
 
 from typing import Optional
+
 from pydantic import BaseModel
 
 
