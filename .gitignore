@@ -237,3 +237,9 @@ output/*.db
 output/*.sqlite*
 logs/*.log
 !media/.gitkeep
+
+# Docker code-server runtime environments
+enviroment/
+pipeline_configs/
+
+
