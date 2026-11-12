@@ -3,10 +3,12 @@ Author: William Rodriguez (wisrovi.dev)
 """
 
 from typing import Any
-from wpipe import step, to_obj
-from wpipe.timeout import timeout_sync
+
 from client import CloudflareAdminClient
 from dto.admin_context import AdminPipelineContext
+from wpipe.decorators.step import step
+from wpipe.timeout import timeout_sync
+from wpipe.util.transform import to_obj
 
 
 @step(
@@ -24,6 +26,10 @@ class FetchStatsStep:
     def __init__(self, client: CloudflareAdminClient | None = None) -> None:
         self.client = client or CloudflareAdminClient()
 
+    def execute(self, context: Any) -> Any:
+        """Execute step logic directly."""
+        return self(context)
+
     @timeout_sync(seconds=5)
     @to_obj(AdminPipelineContext)
     def __call__(self, context: Any) -> Any:
@@ -33,11 +39,17 @@ class FetchStatsStep:
                 context["stats"] = stats
             else:
                 context.stats = stats
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError, ConnectionError, TypeError, KeyError) as e:
+            fallback = {
+                "total_licenses": 0,
+                "active_licenses": 0,
+                "total_activations": 0,
+                "recent_logs_7d": 0,
+            }
             if isinstance(context, dict):
-                context["stats"] = {"total_licenses": 0, "active_licenses": 0, "total_activations": 0, "recent_logs_7d": 0}
+                context["stats"] = fallback
                 context["error"] = str(e)
             else:
-                context.stats = {"total_licenses": 0, "active_licenses": 0, "total_activations": 0, "recent_logs_7d": 0}
+                context.stats = fallback
                 context.error = str(e)
         return context
