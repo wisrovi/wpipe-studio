@@ -1,15 +1,12 @@
-from __future__ import annotations
 #!/usr/bin/env python3
 """WPipe Engine - Command Line Interface & Daemon Launcher
 Author: William Rodriguez (wisrovi.dev)
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
-from pathlib import Path
-
-# Add package root to sys.path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wpipe_engine.core.licensing import LicenseManager, compute_machine_fingerprint
 from wpipe_engine.ipc.server import (
@@ -21,6 +18,7 @@ from wpipe_engine.ipc.server import (
 
 
 def main() -> None:
+    """Execute wpipe-engine CLI commands or launch daemon."""
     parser = argparse.ArgumentParser(
         prog="wpipe-engine",
         description="WPipe Studio Local Native Engine & Licensing Daemon (wisrovi SUITE)",
@@ -29,10 +27,23 @@ def main() -> None:
 
     # Command: daemon (default)
     daemon_parser = subparsers.add_parser("daemon", help="Start the IPC daemon server")
-    daemon_parser.add_argument("--socket", default=DEFAULT_SOCKET_PATH, help=f"Unix socket path (default: {DEFAULT_SOCKET_PATH})")
-    daemon_parser.add_argument("--http", action="store_true", help="Use local HTTP transport instead of Unix socket")
+    daemon_parser.add_argument(
+        "--socket",
+        default=DEFAULT_SOCKET_PATH,
+        help=f"Unix socket path (default: {DEFAULT_SOCKET_PATH})",
+    )
+    daemon_parser.add_argument(
+        "--http",
+        action="store_true",
+        help="Use local HTTP transport instead of Unix socket",
+    )
     daemon_parser.add_argument("--host", default=DEFAULT_HTTP_HOST, help="Local HTTP host")
-    daemon_parser.add_argument("--port", type=int, default=DEFAULT_HTTP_PORT, help=f"Local HTTP port (default: {DEFAULT_HTTP_PORT})")
+    daemon_parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_HTTP_PORT,
+        help=f"Local HTTP port (default: {DEFAULT_HTTP_PORT})",
+    )
 
     # Command: status
     subparsers.add_parser("status", help="Show current license status and block quotas")
@@ -54,7 +65,8 @@ def main() -> None:
         print("           WPIPE STUDIO LICENSE STATUS            ")
         print("==================================================")
         print(f"Active Plan:          {status.get('tier', 'free').upper()}")
-        print(f"Is Pro:               {'YES (Unlimited)' if status.get('is_pro') else 'NO (5 blocks limit)'}")
+        is_pro_label = "YES (Unlimited)" if status.get("is_pro") else "NO (5 blocks limit)"
+        print(f"Is Pro:               {is_pro_label}")
         print(f"Block Limit:          {status.get('max_blocks') or 'Unlimited'}")
         print(f"Machine Fingerprint:  {status.get('machine_fingerprint')}")
         if status.get("lease_expires_at"):
