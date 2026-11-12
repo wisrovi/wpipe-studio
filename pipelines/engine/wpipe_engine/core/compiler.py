@@ -1,13 +1,13 @@
-from __future__ import annotations
 """WPipe Engine - AST Pipeline Compiler & Microservice Generator
 Transforms visual Canvas IR into production Python microservices conforming to wpipe-mcp standards.
 Author: William Rodriguez (wisrovi.dev)
 """
 
+from __future__ import annotations
+
 import os
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from wpipe_engine.core.limiter import classify_node, is_ai_step
@@ -390,7 +390,7 @@ class ASTCompiler:
             return res
 
         imports: set[str] = {
-            "from wpipe import Pipeline, Condition, For, Parallel, Background  # type: ignore[import-untyped]",
+            "from wpipe import Pipeline, Condition, For, Parallel, Background",
             "from config.settings import settings",
             "from dto.context import PipelineContextDTO",
             "from states.base import BaseStep",
@@ -1102,11 +1102,11 @@ def {fn_name}(request: PipelineRequestDTO) -> PipelineResponseDTO:
 
             producer_send_snippet = ""
             if is_kafka_publish:
-                producer_send_snippet = f'''
+                producer_send_snippet = '''
         with kafka.producer() as producer:
             out_topic = settings.kafka_output_topic
             producer.send(out_topic, value=result, format="json")
-            logger.info(f"Published pipeline execution result to topic {{out_topic}} for {{tx_id}}")'''
+            logger.info(f"Published pipeline execution result to topic {out_topic} for {tx_id}")'''
 
             main_py = f'''"""Microservice main entrypoint: WKafka streaming worker & event consumer.
 
@@ -1116,10 +1116,10 @@ Complies with WPipe Quality Rules and WKafka Architecture Standard (wisrovi SUIT
 from typing import Any
 
 from loguru import logger
-from wdecorators import time_execution  # type: ignore[import-untyped]
-from wkafka import WKafka  # type: ignore[import-untyped]
-from wpipe import ResourceMonitor, TaskTimer  # type: ignore[import-untyped]
-from wpipe.exception.api_error import ProcessError  # type: ignore[import-untyped]
+from wdecorators import time_execution
+from wkafka import WKafka
+from wpipe import ResourceMonitor, TaskTimer
+from wpipe.exception.api_error import ProcessError
 
 from config.settings import settings
 from pipelines import build_pipeline
@@ -1214,9 +1214,9 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from loguru import logger
-from wdecorators import time_execution  # type: ignore[import-untyped]
-from wpipe import ResourceMonitor, TaskTimer  # type: ignore[import-untyped]
-from wpipe.exception.api_error import ProcessError  # type: ignore[import-untyped]
+from wdecorators import time_execution
+from wpipe import ResourceMonitor, TaskTimer
+from wpipe.exception.api_error import ProcessError
 
 from config.settings import settings
 from dto.request import PipelineRequestDTO
@@ -1724,9 +1724,9 @@ Conforms to WPipe class-based state specifications with @step, @timeout_sync, an
 from typing import Any
 
 from loguru import logger
-from wpipe import step, to_obj  # type: ignore[import-untyped]
-from wpipe.timeout import timeout_sync  # type: ignore[import-untyped]
-from wpipe.util import object_to_dict  # type: ignore[import-untyped]
+from wpipe import step, to_obj
+from wpipe.timeout import timeout_sync
+from wpipe.util import object_to_dict
 
 from dto.context import PipelineContextDTO
 from states.base import BaseStep
@@ -1787,9 +1787,9 @@ Delegates heavy business logic to decoupled ProcessingService.
 from typing import Any
 
 from loguru import logger
-from wpipe import step, to_obj  # type: ignore[import-untyped]
-from wpipe.timeout import timeout_sync  # type: ignore[import-untyped]
-from wpipe.util import object_to_dict  # type: ignore[import-untyped]
+from wpipe import step, to_obj
+from wpipe.timeout import timeout_sync
+from wpipe.util import object_to_dict
 
 from dto.context import PipelineContextDTO
 from services.business_service import ProcessingService
@@ -1845,9 +1845,9 @@ class TransformPayloadStep(BaseStep):
 from typing import Any
 
 from loguru import logger
-from wpipe import step, to_obj  # type: ignore[import-untyped]
-from wpipe.timeout import timeout_sync  # type: ignore[import-untyped]
-from wpipe.util import object_to_dict  # type: ignore[import-untyped]
+from wpipe import step, to_obj
+from wpipe.timeout import timeout_sync
+from wpipe.util import object_to_dict
 
 from dto.context import PipelineContextDTO
 from states.base import BaseStep
@@ -1926,7 +1926,7 @@ def test_context_validation() -> None:
 def test_context_missing_transaction_id() -> None:
     """Verify ValidationError is raised when mandatory transaction_id is missing."""
     with pytest.raises(ValidationError):
-        PipelineContextDTO(input_data={"key": "value"})  # type: ignore[call-arg]
+        PipelineContextDTO.model_validate({"input_data": {"key": "value"}})
 
 
 def test_request_response_dtos() -> None:
@@ -1957,7 +1957,7 @@ def test_base_step_interface() -> None:
 
     import pytest
     with pytest.raises(TypeError):
-        DummyStep()  # type: ignore[abstract]
+        DummyStep()
 ''')
         if "CleanDataStep" in step_names_for_readme:
             test_states_lines.append('''
@@ -2125,7 +2125,7 @@ httpx>=0.27.0{extra_reqs}
 
         readme_md = f"""# {project_name}
 
-> **Enterprise Python Microservice Orchestration**  
+> **Enterprise Python Microservice Orchestration**
 > Auto-generado, compilado y verificado por **WPipe Studio (wisrovi SUITE)**.
 
 ---
@@ -2133,7 +2133,7 @@ httpx>=0.27.0{extra_reqs}
 ## ⚖️ Legal Notice, Authorship & Intellectual Property Rights
 
 > [!IMPORTANT]
-> **Aviso Prioritario de Derechos de Autor y Protección de Código**  
+> **Aviso Prioritario de Derechos de Autor y Protección de Código**
 > Este documento establece con carácter vinculante y oficial los **derechos de autor, propiedad intelectual y atribución técnica** del presente microservicio. Este archivo se encuentra protegido contra edición manual en WPipe Studio.
 
 ### Plataforma & Ecosistema de Ingeniería
@@ -2497,8 +2497,8 @@ explicit_package_bases = true
             str: Reformatted python code.
         """
         try:
-            import isort  # type: ignore[import-untyped]
-            from isort import Config  # type: ignore[import-untyped]
+            import isort
+            from isort import Config
 
             isort_cfg = Config(
                 profile="black",
@@ -2528,7 +2528,7 @@ explicit_package_bases = true
             pass
 
         try:
-            import black  # type: ignore[import-untyped]
+            import black
 
             code = black.format_str(code, mode=black.FileMode())
         except Exception:
