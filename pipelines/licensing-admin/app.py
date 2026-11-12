@@ -14,6 +14,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 from client import CloudflareAdminClient
+
 from pipelines import create_admin_pipeline
 
 # Configure Streamlit page layout and dark theme
@@ -27,7 +28,7 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Security & Authentication Gate
 # -----------------------------------------------------------------------------
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "wisrovi2026")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 
 def check_password() -> bool:
@@ -52,7 +53,9 @@ def check_password() -> bool:
     with col2:
         pwd = st.text_input("Contraseña de Administrador", type="password")
         if st.button("Iniciar Sesión", use_container_width=True, type="primary"):
-            if pwd == ADMIN_PASSWORD:
+            if not ADMIN_PASSWORD:
+                st.error("ADMIN_PASSWORD no configurada en las variables de entorno.")
+            elif pwd == ADMIN_PASSWORD:
                 st.session_state.authenticated = True
                 st.rerun()
             else:
@@ -238,7 +241,7 @@ with tab1:
         with acol1:
             selected_lic_id = st.selectbox(
                 "Seleccionar Licencia",
-                options=[f"{l['id']} — {l['license_key']} ({l['customer_email']})" for l in filtered_licenses],
+                options=[f"{lic['id']} — {lic['license_key']} ({lic['customer_email']})" for lic in filtered_licenses],
             )
             lic_id = selected_lic_id.split(" — ")[0]
         with acol2:
@@ -287,7 +290,7 @@ with tab2:
         with lcol1:
             sel_lease = st.selectbox(
                 "Seleccionar Asiento a Liberar",
-                options=[f"{l['id']} — {l.get('hostname') or 'PC'} ({l.get('license_key') or ''})" for l in leases],
+                options=[f"{lease['id']} — {lease.get('hostname') or 'PC'} ({lease.get('license_key') or ''})" for lease in leases],
             )
             lease_id = sel_lease.split(" — ")[0]
         with lcol2:
