@@ -2,7 +2,7 @@
 Author: William Rodriguez (wisrovi.dev)
 """
 
-from wpipe_engine.core.limiter import check_compilation_limits, MAX_FREE_BLOCKS
+from wpipe_engine.core.limiter import MAX_FREE_BLOCKS, check_compilation_limits
 
 
 def test_free_tier_within_limits_allowed():
