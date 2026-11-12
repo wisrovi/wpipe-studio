@@ -13,7 +13,7 @@ This test module verifies the core business logic of the Cloudflare D1 Admin Cli
 from __future__ import annotations
 
 import unittest.mock as mock
-import pytest
+
 from client import CloudflareAdminClient, generate_license_key
 
 
@@ -68,19 +68,6 @@ def test_client_execute_query_via_rest():
         database_id="db_456",
         api_token="test_token_secret",
     )
-
-    mock_response_payload = {
-        "success": True,
-        "errors": [],
-        "messages": [],
-        "result": [
-            {
-                "results": [
-                    {"id": "lic_1", "license_key": "WPIPE-PRO-AAAA-BBBB-CCCC"}
-                ]
-            }
-        ],
-    }
 
     mock_resp = mock.MagicMock()
     mock_resp.read.return_value = json_bytes = mock.MagicMock()
