@@ -1,69 +1,119 @@
 ---
 name: wpipe-vscode-testing
-description: Procedimiento operativo estándar y metodología rigurosa para probar la extensión WPipe Studio en VS Code Web mediante los contenedores Docker y MCP Chrome DevTools.
+description: Standard operating procedure and automated test protocol for live testing the WPipe Studio VS Code Web extension across the 3 Docker code-server instances using Chrome DevTools MCP. Triggered whenever the user says "prueba que funciona", "prueba la extensión", "test that it works", or requests live visual extension validation.
 ---
 
-# Procedimiento de Pruebas de WPipe Studio (VS Code Extension & Tri-Instance Docker)
+# WPipe Studio Testing Procedure (VS Code Extension & Tri-Instance Docker)
 
-Este documento detalla el procedimiento estandarizado para probar de forma integral y repetible la extensión `wisrovi.wpipe-vscode` en vivo.
+Standardized, end-to-end operational procedure for testing the official `wpipe.wpipe-vscode` extension across 3 live Docker `code-server` instances using Chrome DevTools MCP (`chrome-devtools`).
+
+Trigger this procedure automatically whenever the user requests:
+- *"prueba que funciona"*
+- *"prueba la extensión"*
+- *"test that it works"* / *"verify in browser"*
+- Any request to test or validate the VS Code extension in the web environment.
+
+```mermaid
+flowchart TD
+    Build["1. Build & Hot-Deploy<br/>(compile + vsce package 2.0.1)"] --> Deploy["2. Docker Reinstall<br/>(install to code-server-1, 2, 3 + Host)"]
+    Deploy --> Test1["3. Instance 1 (Port 18001)<br/>Blockly Canvas & Overwrite Dialog"]
+    Deploy --> Test2["4. Instance 2 (Port 18002)<br/>Explorer & States Sync"]
+    Deploy --> Test3["5. Instance 3 (Port 18003)<br/>Code Editor & Live Mermaid DAG"]
+    Test1 & Test2 & Test3 --> Report["6. Screenshots & Verified Report"]
+```
 
 ---
 
-## 1. Topología del Entorno de Pruebas
+## 1. Test Environment Topology
 
-El entorno de pruebas de la extensión de VS Code se apoya en instancias simultáneas de `code-server` corriendo en contenedores Docker y mapeadas contra el workspace del microservicio generado:
+All 3 instances share the same workspace mounted at `/home/coder/workspace`:
+Host path: `enviroment/code-server/app/` (mounted with user `william.rodriguez:william.rodriguez` / `1000:1000`).
 
-| Instancia | Puerto Local | Contenedor Docker | Rol en Pruebas |
+| Instance | Local Port | Container Name | Testing Role |
 |---|---|---|---|
-| **Página 1 (Instancia 1)** | `http://localhost:18081/?folder=/home/coder/workspace` | `ksldfg-code-server-1` | **Canvas Visual Blockly (`pipeline.wpipe`)**: Comprobación del layout de bloques, conexiones en serie/paralelo, badges de licencia (`Blocks X / ∞ · PRO`), paleta de herramientas y consola sin errores de CSP. |
-| **Página 2 (Instancia 2)** | `http://localhost:18082/?folder=/home/coder/workspace` | `ksldfg-code-server2-1` | **Explorador y Árbol de Estados (`app/states/`)**: Inspección del registro de estados, archivos `.py` sincronizados, creación vía Wizard y árbol lateral de pasos. |
-| **Página 3 (Instancia 3)** | `http://localhost:18083/?folder=/home/coder/workspace` | `ksldfg-code-server3-1` | **Editor de Código Python (`app/pipelines.py`)**: Validación del código descompilado/compilado, ejecución con `execute_pipeline(payload)`, decoradores `@step` y `@to_obj`. |
+| **Instance 1** | `http://localhost:18001/?folder=/home/coder/workspace` | `code-server-code-server-1-1` | **Blockly Canvas (`demo_pipeline.wpipe`)**: Block layout, Free plan quota badge (`Blocks 5 / 5 · Free`), lockout, Live AST code drawer, save button, and change overwrite modal (`Sobrescribir todos`). |
+| **Instance 2** | `http://localhost:18002/?folder=/home/coder/workspace` | `code-server-code-server-2-1` | **Explorer & States Sync**: Verification of full generated microservice files (`app/`, `Dockerfile`, `Makefile`, `README.md`, `pyproject.toml`, `requirements.txt`) and `app/states/` (`ai_sentiment_step.py`, `base.py`). |
+| **Instance 3** | `http://localhost:18003/?folder=/home/coder/workspace` | `code-server-code-server-3-1` | **Code Editor & DAG Preview (`app/pipelines.py`)**: WPipe CodeLens (`Run Pipeline`, `Preview DAG`, `Add Logic Block`) and Live Mermaid DAG split-view (`WPipe Analysis`). |
 
 ---
 
-## 2. Ciclo Completo de Compilación y Despliegue en Caliente
+## 2. Compilation and Hot-Deployment Cycle
 
-Siempre que se modifique código en la extensión nativa (`ui/extension/vscode/`):
+Whenever testing is requested or extension code is modified:
 
-### Paso 2.1: Compilar TypeScript
+### Step 2.1: Compile TypeScript
 ```bash
 npm --prefix ui/extension/vscode run compile
 ```
 
-### Paso 2.2: Empaquetar el VSIX
+### Step 2.2: Package VSIX
 ```bash
-cd ui/extension/vscode
-vsce package --no-git-tag-version --allow-missing-repository -o wpipe-vscode-2.0.0.vsix
-cd ../../..
+(cd ui/extension/vscode && vsce package --no-git-tag-version --allow-missing-repository --no-dependencies -o wpipe-vscode-2.0.1.vsix)
 ```
 
-### Paso 2.3: Desplegar forzadamente en las instancias de Docker
+### Step 2.3: Force Reinstall in All 3 Docker Containers
 ```bash
-VSIX="ui/extension/vscode/wpipe-vscode-2.0.0.vsix"
-for C in ksldfg-code-server-1 ksldfg-code-server2-1 ksldfg-code-server3-1; do
-    docker cp "$VSIX" "$C":/tmp/
-    docker exec "$C" code-server --install-extension /tmp/wpipe-vscode-2.0.0.vsix --force
+VSIX="ui/extension/vscode/wpipe-vscode-2.0.1.vsix"
+for C in code-server-code-server-1-1 code-server-code-server-2-1 code-server-code-server-3-1; do
+    docker cp "$VSIX" "$C":/tmp/wpipe-vscode-2.0.1.vsix
+    docker exec "$C" code-server --uninstall-extension wisrovi.wpipe-vscode || true
+    docker exec "$C" code-server --install-extension /tmp/wpipe-vscode-2.0.1.vsix --force
 done
 ```
 
-### Paso 2.4: Instalación en el VS Code Local del Host
+### Step 2.4: Force Reinstall on Host VS Code
 ```bash
-code --install-extension ui/extension/vscode/wpipe-vscode-2.0.0.vsix --force
+code --install-extension ui/extension/vscode/wpipe-vscode-2.0.1.vsix --force
 ```
 
 ---
 
-## 3. Arquitectura Canónica del Monorepo
+## 3. Chrome DevTools MCP Automated Testing Protocol
 
-| Directorio | Rol en el Sistema |
-|---|---|
-| **`pipelines/engine/`** | Motor daemon nativo local `wpipe-engine` (IPC Unix Domain Socket, PyInstaller, AST Compiling). |
-| **`pipelines/verifier/`** | Orquestador de la batería de calidad QA Docker y validación en tiempo de ejecución (`dry_run_pipeline`). |
-| **`pipelines/licensing-admin/`** | Aplicación Streamlit para administración y auditoría de licencias con `admin_cloudfire_pipeline`. |
-| **`ui/extension/vscode/`** | Código TypeScript de la extensión VS Code (Custom Editor `*.wpipe` y palette de 196 steps). |
-| **`ui/web/studio-canvas/`** | Interfaz web interactiva del lienzo de pipelines desplegada en `studio.wisrovi.dev`. |
-| **`ui/web/superadmin/`** | Consola maestra de administración protegida por 2FA OTP (`admin.wisrovi.dev`). |
-| **`ui/web/client-portal/`** | Portal cliente autoservicio para consulta y activación (`portal.wisrovi.dev`). |
-| **`edge/cloudfire/`** | Cloudflare Worker API (`api.wisrovi.dev`) con D1 Database, firmas Ed25519 y webhooks de pago. |
-| **`contracts/`** | Esquemas JSON formales del IR (`contracts/ir/wpipe-schema.json`) y catálogo oficial (`contracts/catalog/steps_catalog.json`). |
-| **`scripts/`** | Scripts operativos de ejecución de tests en sandbox Docker y coberturas. |
+Using the lazy-loaded `chrome-devtools` MCP server tools:
+
+### Phase 1: Instance 1 — Canvas & Overwrite Confirmation Dialog
+1. Open or navigate to `http://localhost:18001/?folder=/home/coder/workspace`.
+2. Ensure `demo_pipeline.wpipe` exists in `/home/coder/workspace` (copy from `contracts/ir/demo_pipeline.wpipe` if needed).
+3. In the Activity Bar, click **WPipe** (`uid` of `WPipe: Step Registry`).
+4. Click on `demo_pipeline.wpipe` under `🚀 Workspace Pipelines` to open the custom editor.
+5. Verify inside the Webview iframe:
+   - 5 blocks loaded (Trigger, HttpRequest, AISentimentStep, SaveDatabaseStep, Egress).
+   - Badge shows `Blocks 5 / 5 · Free` and palette lockout.
+   - Click `Fit` and `Code` button to verify split-view live AST generator.
+6. Trigger save / overwrite test:
+   - Modify a file like `/home/coder/workspace/app/main.py` with a test comment.
+   - Click "Guardado ✓" (or trigger canvas save).
+   - Verify the interactive notification appears:
+     `⚠️ El archivo "app/main.py" ya existe con contenido distinto. ¿Deseas sobrescribirlo con la nueva configuración del pipeline?`
+   - Click `Sobrescribir todos`.
+   - Verify success notification: `💾 Pipeline guardado y microservicio compilado (Demo Pipeline)`.
+7. Capture screenshot using `take_screenshot`.
+
+### Phase 2: Instance 2 — Real-time Workspace & States Tree
+1. Open or navigate to `http://localhost:18002/?folder=/home/coder/workspace`.
+2. Inspect the File Explorer tree:
+   - Verify generated files: `app/` (`dto/`, `states/`, `services/`, `utils/`, `config/`, `test/`), `docker-compose.yml`, `Dockerfile`, `Makefile`, `README.md`, `pyproject.toml`, `requirements.txt`.
+3. Expand `app/states/`:
+   - Verify `ai_sentiment_step.py` and `base.py` exist and are populated.
+
+### Phase 3: Instance 3 — Python Code & Live Mermaid DAG
+1. Open or navigate to `http://localhost:18003/?folder=/home/coder/workspace`.
+2. Open `app/pipelines.py` in the Monaco editor.
+3. Verify CodeLens actions appear:
+   - ` Run Pipeline`
+   - ` Preview DAG`
+   - ` Add Logic Block`
+4. Click `WPipe: Preview Pipeline DAG` (` Preview DAG`).
+5. Verify split-view `WPipe Analysis` opens:
+   - Metrics cards: `1 PIPELINE`, `3 ESTADOS TOTALES`, `O(N) COMPLEJIDAD TEÓRICA`.
+   - SVG Mermaid Flowchart renders: `🚀 Iniciar Pipeline` ➔ `HttpRequest` ➔ `AISentimentStep` ➔ `SaveDatabaseStep` ➔ `🏁 Fin`.
+6. Capture screenshot with `take_screenshot`.
+
+---
+
+## 4. Key Technologies and Libraries
+- **VS Code Extension API**: Custom Editor Provider (`*.wpipe`), TreeDataProvider (Step Registry), Webview API.
+- **Chrome DevTools Protocol (MCP)**: Headless browser control, DOM inspection, evaluate_script, screenshot capture.
+- **Docker & code-server**: 3 ephemeral browser IDE containers (`codercom/code-server:4.16.1-ubuntu`).
+- **WPipe & Mermaid.js**: Python AST compilation and real-time DAG graph visualization.
