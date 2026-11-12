@@ -1,20 +1,18 @@
-from __future__ import annotations
 """WPipe Engine - Local Workspace & Project Manager
 Manages local microservice directories, canvas persistence, .env variables and terminal commands.
 Author: William Rodriguez (wisrovi.dev)
 """
 
+from __future__ import annotations
+
 import json
-import os
 import re
 import shutil
 import subprocess
-import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
 
 DEFAULT_WORKSPACES_ROOT = Path.home() / ".wpipe" / "workspaces"
 
