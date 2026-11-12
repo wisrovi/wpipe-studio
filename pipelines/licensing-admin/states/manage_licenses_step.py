@@ -3,10 +3,12 @@ Author: William Rodriguez (wisrovi.dev)
 """
 
 from typing import Any
-from wpipe import step, to_obj
-from wpipe.timeout import timeout_sync
+
 from client import CloudflareAdminClient
 from dto.admin_context import AdminPipelineContext
+from wpipe.decorators.step import step
+from wpipe.timeout import timeout_sync
+from wpipe.util.transform import to_obj
 
 
 def _get(obj: Any, key: str, default: Any = None) -> Any:
@@ -31,6 +33,10 @@ class ManageLicensesStep:
 
     def __init__(self, client: CloudflareAdminClient | None = None) -> None:
         self.client = client or CloudflareAdminClient()
+
+    def execute(self, context: Any) -> Any:
+        """Execute step logic directly."""
+        return self(context)
 
     @timeout_sync(seconds=8)
     @to_obj(AdminPipelineContext)
@@ -67,7 +73,7 @@ class ManageLicensesStep:
                 context["licenses"] = licenses
             else:
                 context.licenses = licenses
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError, ConnectionError, TypeError, KeyError) as e:
             if isinstance(context, dict):
                 context["licenses"] = []
                 context["error"] = str(e)
