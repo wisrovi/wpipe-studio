@@ -29,7 +29,6 @@ from typing import Any
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
-
 from wpipe_engine.core import licensing
 from wpipe_engine.core.compiler import ASTCompiler
 from wpipe_engine.core.licensing import LicenseManager
@@ -130,10 +129,10 @@ def engine(tmp_path, monkeypatch):
     license_mgr = LicenseManager(config_dir=tmp_path / "cfg", public_key_hex=pub_hex)
     workspace_root = tmp_path / "workspaces"
     server = ThreadedHTTPServer(("127.0.0.1", 0), EngineRequestHandler)
-    server.license_mgr = license_mgr  # type: ignore[attr-defined]
-    server.compiler = ASTCompiler()  # type: ignore[attr-defined]
-    server.runner = LocalRunner()  # type: ignore[attr-defined]
-    server.workspace_mgr = WorkspaceManager(root_dir=workspace_root)  # type: ignore[attr-defined]
+    server.license_mgr = license_mgr
+    server.compiler = ASTCompiler()
+    server.runner = LocalRunner()
+    server.workspace_mgr = WorkspaceManager(root_dir=workspace_root)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
@@ -145,14 +144,18 @@ def engine(tmp_path, monkeypatch):
         )
 
     class NS:
-        pass
+        client: Any = None
+        priv: Any = None
+        license_mgr: Any = None
+        workspace_root: Any = None
+        install: Any = None
 
     ns = NS()
-    ns.client = EngineClient(f"http://127.0.0.1:{server.server_address[1]}")  # type: ignore[attr-defined]
-    ns.priv = priv  # type: ignore[attr-defined]
-    ns.license_mgr = license_mgr  # type: ignore[attr-defined]
-    ns.workspace_root = workspace_root  # type: ignore[attr-defined]
-    ns.install = install  # type: ignore[attr-defined]
+    ns.client = EngineClient(f"http://127.0.0.1:{server.server_address[1]}")
+    ns.priv = priv
+    ns.license_mgr = license_mgr
+    ns.workspace_root = workspace_root
+    ns.install = install
     try:
         yield ns
     finally:
