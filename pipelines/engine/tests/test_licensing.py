@@ -5,14 +5,13 @@ Author: William Rodriguez (wisrovi.dev)
 import base64
 import json
 import time
-from pathlib import Path
-from cryptography.hazmat.primitives.asymmetric import ed25519
-from cryptography.hazmat.primitives import serialization
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 from wpipe_engine.core.licensing import (
+    LicenseManager,
     compute_machine_fingerprint,
     verify_lease_token,
-    LicenseManager,
 )
 
 
