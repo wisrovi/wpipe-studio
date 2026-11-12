@@ -8,7 +8,7 @@ Orchestrates static analysis (black, isort, ruff, mypy, pylint) and runtime exec
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+
 from wpipe import Pipeline
 
 
