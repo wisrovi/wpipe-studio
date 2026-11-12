@@ -25,41 +25,48 @@
     <meta name="twitter:title" content="WPipe Studio | Visual Pipelines → Production Microservices">
 
     <!-- Favicon (Official WPipe Constellation Icon) -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none'%3E%3Cpath d='M3 6L7.5 18L12 9L16.5 18L21 6' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='3' cy='6' r='2.2' fill='%2338bdf8'/%3E%3Ccircle cx='12' cy='9' r='2.2' fill='%230284c7'/%3E%3Ccircle cx='21' cy='6' r='2.2' fill='%2338bdf8'/%3E%3Ccircle cx='7.5' cy='18' r='2' fill='%2338bdf8'/%3E%3Ccircle cx='16.5' cy='18' r='2' fill='%2338bdf8'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none'%3E%3Cpath d='M3 6L7.5 18L12 9L16.5 18L21 6' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='3' cy='6' r='2.2' fill='%2310b981'/%3E%3Ccircle cx='12' cy='9' r='2.2' fill='%236366f1'/%3E%3Ccircle cx='21' cy='6' r='2.2' fill='%2310b981'/%3E%3Ccircle cx='7.5' cy='18' r='2' fill='%2310b981'/%3E%3Ccircle cx='16.5' cy='18' r='2' fill='%2310b981'/%3E%3C/svg%3E">
 
-    <!-- Fonts -->
+    <!-- Fonts: Outfit (Headings), Plus Jakarta Sans (Body), JetBrains Mono (Code) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
-            /* Palette: code-dark surfaces + "run green" accent (matches the wisrovi.dev Studio CTA) */
-            --primary: #22c55e;
-            --primary-strong: #16a34a;
-            --primary-glow: rgba(34, 197, 94, 0.35);
-            --secondary: #06b6d4;
-            --secondary-glow: rgba(6, 182, 212, 0.3);
-            --violet: #a78bfa;
+            /* Palette: Deep sleek surfaces + Neon Emerald, Indigo, Violet accents */
+            --bg-deep: #05070c;
+            --bg-elev: #0a0d14;
+            --bg-surface: #0e131f;
+            --bg-card: rgba(16, 22, 35, 0.7);
+            --bg-card-hover: rgba(23, 32, 51, 0.85);
+
+            --primary: #10b981;
+            --primary-strong: #059669;
+            --primary-glow: rgba(16, 185, 129, 0.35);
+
+            --secondary: #6366f1;
+            --secondary-glow: rgba(99, 102, 241, 0.35);
+
+            --violet: #8b5cf6;
+            --violet-glow: rgba(139, 92, 246, 0.3);
+
+            --cyan: #06b6d4;
             --amber: #f59e0b;
             --danger: #f87171;
-            --bg-deep: #030712;
-            --bg-elev: #0b1120;
-            --bg-card: rgba(15, 23, 42, 0.72);
-            --bg-card-hover: rgba(30, 41, 59, 0.85);
-            --text-main: #f8fafc;
-            --text-dim: #a3b1c6;
-            --text-muted: #7c8aa0;
-            --border: rgba(148, 163, 184, 0.14);
-            --border-highlight: rgba(34, 197, 94, 0.45);
 
-            --gradient-linear: linear-gradient(135deg, #22c55e 0%, #06b6d4 100%);
-            --gradient-mesh: radial-gradient(at 8% 0%, rgba(34, 197, 94, 0.13) 0, transparent 45%),
-                             radial-gradient(at 95% 12%, rgba(6, 182, 212, 0.12) 0, transparent 45%),
-                             radial-gradient(at 50% 100%, rgba(167, 139, 250, 0.08) 0, transparent 50%);
-            --shadow-neo: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
-            --shadow-glow: 0 0 34px var(--primary-glow);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --text-muted: #64748b;
+
+            --border: rgba(255, 255, 255, 0.08);
+            --border-highlight: rgba(16, 185, 129, 0.45);
+
+            --gradient-linear: linear-gradient(135deg, #10b981 0%, #6366f1 100%);
+            --gradient-accent: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #8b5cf6 100%);
+            --shadow-neo: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+            --shadow-glow: 0 0 35px var(--primary-glow);
 
             --ease: cubic-bezier(0.4, 0, 0.2, 1);
             --transition: all 0.25s var(--ease);
@@ -72,20 +79,81 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--bg-deep);
-            background-image: var(--gradient-mesh);
-            background-attachment: fixed;
             color: var(--text-main);
             line-height: 1.6;
             font-size: 16px;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
+            position: relative;
         }
+
+        /* 8. Custom Scrollbar */
+        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar-track { background: #05070c; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.5); }
+        * { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.16) #05070c; }
+
         a { color: inherit; }
-        :focus-visible { outline: 3px solid var(--secondary); outline-offset: 3px; border-radius: 8px; }
+        :focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 8px; }
+
         .container { max-width: var(--container-max); margin: 0 auto; padding: 0 1.5rem; }
         section { padding: 110px 0; position: relative; }
-        h1, h2, h3, h4 { font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+        h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; }
         .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* 1. Background Auroras */
+        .aurora-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            overflow: hidden; pointer-events: none; z-index: -1;
+        }
+        .aurora {
+            position: absolute; border-radius: 50%; filter: blur(120px);
+            opacity: 0.14; will-change: transform;
+        }
+        .aurora-1 {
+            width: 580px; height: 580px; background: #10b981;
+            top: -120px; left: -100px;
+            animation: aurora-float-1 20s ease-in-out infinite alternate;
+        }
+        .aurora-2 {
+            width: 620px; height: 620px; background: #6366f1;
+            top: 15%; right: -150px;
+            animation: aurora-float-2 24s ease-in-out infinite alternate;
+        }
+        .aurora-3 {
+            width: 540px; height: 540px; background: #8b5cf6;
+            bottom: -120px; left: 28%;
+            animation: aurora-float-3 22s ease-in-out infinite alternate;
+        }
+
+        @keyframes aurora-float-1 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(110px, 90px) scale(1.15); }
+        }
+        @keyframes aurora-float-2 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-100px, 110px) scale(0.9); }
+        }
+        @keyframes aurora-float-3 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(90px, -80px) scale(1.18); }
+        }
+
+        /* 1. Glassmorphism */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: var(--transition);
+        }
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+            background: var(--bg-card-hover);
+        }
+
         .gradient-text {
             background: var(--gradient-linear);
             -webkit-background-clip: text;
@@ -95,7 +163,7 @@
         .eyebrow {
             display: inline-flex; align-items: center; gap: .5rem;
             font-family: 'JetBrains Mono', monospace;
-            font-size: .8rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+            font-size: .82rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
             color: var(--primary);
             margin-bottom: 1rem;
         }
@@ -104,49 +172,420 @@
         .section-header p { color: var(--text-dim); font-size: 1.15rem; max-width: 720px; margin: 0 auto; }
         .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-        /* Buttons */
+        /* 2. Microinteractions & Buttons */
         .btn {
+            position: relative;
             display: inline-flex; align-items: center; justify-content: center; gap: .7rem;
             min-height: 52px; padding: 0 1.9rem;
             border-radius: 14px; font-weight: 700; font-size: 1.05rem;
             text-decoration: none; cursor: pointer; border: 1px solid transparent;
-            transition: var(--transition);
+            overflow: hidden;
+            transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
         }
-        .btn-main { background: var(--gradient-linear); color: #04130a; box-shadow: var(--shadow-glow); }
-        .btn-main:hover { transform: translateY(-3px); box-shadow: 0 0 46px var(--primary-glow); }
-        .btn-outline { background: rgba(255,255,255,0.02); color: var(--text-main); border-color: var(--border); }
-        .btn-outline:hover { border-color: var(--primary); background: rgba(34,197,94,0.07); transform: translateY(-3px); }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Glossy sweep pseudo-element */
+        .btn-main, .btn-glossy {
+            background: var(--gradient-linear);
+            color: #04130a;
+            box-shadow: var(--shadow-glow);
+        }
+        .btn-main::before, .btn-glossy::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -130%; width: 55%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transform: skewX(-25deg);
+            transition: left 0.75s var(--ease);
+            pointer-events: none;
+        }
+        .btn-main:hover::before, .btn-glossy:hover::before {
+            left: 190%;
+        }
+        .btn-main:hover {
+            box-shadow: 0 0 46px var(--primary-glow), 0 12px 24px -6px rgba(0, 0, 0, 0.5);
+        }
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            border-color: var(--border);
+            backdrop-filter: blur(8px);
+        }
+        .btn-outline:hover {
+            border-color: var(--primary);
+            background: rgba(16, 185, 129, 0.08);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
         .btn-sm { min-height: 42px; padding: 0 1.2rem; font-size: .92rem; border-radius: 999px; }
 
-        /* Navigation */
+        /* Integrated loading spinners */
+        .btn.loading {
+            pointer-events: none;
+            position: relative;
+        }
+        .btn.loading .btn-text {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .btn .btn-spinner {
+            display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn.loading .btn-spinner {
+            display: flex;
+        }
+        .btn-spinner svg {
+            width: 22px; height: 22px;
+            animation: rotate 1s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 3. Inputs & Forms Focus */
+        input[type="text"], input[type="range"], select {
+            transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+        }
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+        }
+        input[type=range] {
+            width: 100%; accent-color: var(--primary); height: 28px; cursor: pointer;
+        }
+        input[type=range]:focus-visible {
+            outline: none;
+            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.6));
+        }
+
+        /* 3. Drag & Drop Zone */
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.16);
+            border-radius: 18px;
+            background: rgba(16, 22, 35, 0.4);
+            padding: 2.2rem 1.8rem;
+            text-align: center;
+            transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.25s var(--ease);
+            cursor: pointer;
+            position: relative;
+        }
+        .dropzone svg, .dropzone i {
+            transition: transform 0.25s var(--ease), color 0.25s var(--ease);
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--primary);
+            box-shadow: 0 0 24px rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.05);
+        }
+        .dropzone:hover svg, .dropzone:hover i,
+        .dropzone.dragover svg, .dropzone.dragover i {
+            transform: translateY(-2px);
+            color: var(--primary);
+        }
+
+        /* 3. Interactive Table Rows */
+        table.compare { width: 100%; border-collapse: collapse; min-width: 720px; }
+        .compare th, .compare td { padding: 1.05rem 1.3rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .compare thead th { font-size: .82rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); background: rgba(5,7,12,0.6); }
+        .compare td:first-child { font-weight: 700; }
+        .compare .manual { color: var(--danger); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .compare .studio { color: var(--primary); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+        .compare tfoot td { font-size: 1.1rem; font-weight: 800; background: rgba(16,185,129,0.06); border-bottom: none; }
+        table.compare tbody tr {
+            transition: background 0.2s var(--ease), border-left-color 0.2s var(--ease);
+            cursor: pointer;
+        }
+        table.compare tbody tr:hover {
+            background: rgba(16, 185, 129, 0.05);
+        }
+        table.compare tbody tr.selected {
+            background: rgba(16, 185, 129, 0.12) !important;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* 4. Navigation & Mobile Drawer */
         nav {
             position: fixed; top: 0; width: 100%; z-index: 1000;
             padding: 1.1rem 0; transition: var(--transition);
             border-bottom: 1px solid transparent;
         }
-        nav.scrolled { background: rgba(3, 7, 18, 0.86); backdrop-filter: blur(16px); padding: .75rem 0; border-color: var(--border); }
+        nav.scrolled {
+            background: rgba(5, 7, 12, 0.88);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            padding: .75rem 0;
+            border-color: var(--border);
+        }
         .nav-content { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-        .logo { display: flex; align-items: center; gap: .7rem; font-size: 1.3rem; font-weight: 800; text-decoration: none; }
+        .logo { display: flex; align-items: center; gap: .7rem; font-size: 1.35rem; font-weight: 800; text-decoration: none; font-family: 'Outfit', sans-serif; }
         .logo-mark {
-            width: 36px; height: 36px; border-radius: 10px; background: var(--gradient-linear);
-            display: grid; place-items: center; color: #04130a; font-size: 1rem; box-shadow: var(--shadow-glow);
+            width: 38px; height: 38px; border-radius: 11px; background: var(--gradient-linear);
+            display: grid; place-items: center; color: #04130a; font-size: 1.05rem; box-shadow: var(--shadow-glow);
         }
         .logo small { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--primary); font-weight: 700; border: 1px solid var(--border-highlight); padding: .1rem .45rem; border-radius: 6px; }
         .nav-links { display: flex; gap: 2rem; align-items: center; }
         .nav-links a:not(.btn) { text-decoration: none; color: var(--text-dim); font-weight: 600; font-size: .95rem; transition: var(--transition); }
         .nav-links a:not(.btn):hover { color: var(--primary); }
 
+        .suite-switcher {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: rgba(16, 22, 35, 0.85); border: 1px solid var(--border);
+            padding: 4px; border-radius: 9999px; backdrop-filter: blur(8px);
+        }
+        .suite-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700;
+            text-decoration: none; color: var(--text-dim); transition: var(--transition);
+        }
+        .suite-pill:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.05); }
+        .suite-pill.active {
+            background: rgba(16, 185, 129, 0.16); color: var(--primary);
+            border: 1px solid var(--border-highlight); box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .menu-toggle {
+            display: none;
+            align-items: center; justify-content: center;
+            width: 44px; height: 44px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-main);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+        }
+        .menu-toggle:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Drawer Overlay & Panel */
+        .drawer-overlay {
+            position: fixed; inset: 0;
+            background: rgba(5, 7, 12, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.35s var(--ease), visibility 0.35s;
+            z-index: 9998;
+        }
+        .drawer-overlay.open { opacity: 1; visibility: visible; }
+        .drawer {
+            position: fixed; top: 0; right: -100%;
+            width: 320px; max-width: 85vw; height: 100vh;
+            background: rgba(10, 13, 20, 0.96);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: -15px 0 45px rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            padding: 2.2rem 1.8rem;
+            display: flex; flex-direction: column; justify-content: space-between;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .drawer.open { right: 0; }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .drawer-close {
+            background: none; border: none; color: var(--text-dim);
+            font-size: 1.4rem; cursor: pointer; padding: 4px;
+            transition: var(--transition);
+        }
+        .drawer-close:hover { color: var(--danger); transform: rotate(90deg); }
+        .drawer-links { display: flex; flex-direction: column; gap: 1.25rem; }
+        .drawer-links a {
+            text-decoration: none; color: var(--text-main); font-size: 1.15rem; font-weight: 600;
+            padding: .6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: var(--transition); display: flex; align-items: center; justify-content: space-between;
+        }
+        .drawer-links a:hover { color: var(--primary); padding-left: 8px; }
+
+        /* 5. Splash Screen */
+        .splash-screen {
+            position: fixed; inset: 0; z-index: 99999;
+            background: #05070c;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.75rem;
+            transition: opacity 0.5s var(--ease), visibility 0.5s var(--ease);
+        }
+        .splash-screen.fade-out {
+            opacity: 0; visibility: hidden; pointer-events: none;
+        }
+        .splash-logo {
+            display: flex; align-items: center; gap: 1rem;
+            animation: logo-pulse 2s infinite ease-in-out;
+        }
+        .splash-logo-icon {
+            width: 58px; height: 58px; border-radius: 16px;
+            background: var(--gradient-linear);
+            display: grid; place-items: center; color: #04130a; font-size: 1.75rem;
+            box-shadow: var(--shadow-glow);
+        }
+        .splash-logo-text {
+            font-family: 'Outfit', sans-serif; font-size: 2.1rem; font-weight: 800;
+            color: var(--text-main); letter-spacing: -0.03em;
+        }
+        @keyframes logo-pulse {
+            0% { transform: scale(0.96); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4)); }
+            50% { transform: scale(1.04); filter: drop-shadow(0 0 35px rgba(16, 185, 129, 0.85)); }
+            100% { transform: scale(0.96); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4)); }
+        }
+        .splash-progress-track {
+            width: 240px; height: 5px;
+            background: rgba(255, 255, 255, 0.08); border-radius: 999px;
+            overflow: hidden; position: relative;
+        }
+        .splash-progress-bar {
+            width: 0%; height: 100%;
+            background: var(--gradient-linear); border-radius: 999px;
+            transition: width 1.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 12px var(--primary);
+        }
+        .splash-tagline {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        /* 6. Skeleton Loader & Smooth Image Loading */
+        .skeleton {
+            background: #121826;
+            position: relative; overflow: hidden; border-radius: 8px;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+            animation: loading-sweep 1.8s infinite;
+        }
+        @keyframes loading-sweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        img.smooth-load {
+            opacity: 0; transform: scale(0.98);
+            transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+        }
+        img.smooth-load.loaded {
+            opacity: 1; transform: scale(1);
+        }
+
+        /* 7. Interactive Accordions (FAQ) */
+        .faq-accordion { max-width: 860px; margin: 0 auto; display: grid; gap: 1rem; }
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            overflow: hidden;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+        }
+        .faq-item.active {
+            border-color: var(--border-highlight);
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.12);
+        }
+        .faq-trigger {
+            width: 100%; padding: 1.35rem 1.6rem;
+            background: none; border: none; color: var(--text-main);
+            font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.1rem;
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            cursor: pointer; text-align: left;
+        }
+        .faq-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.04); color: var(--text-muted);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s, background 0.3s;
+            flex-shrink: 0;
+        }
+        .faq-item.active .faq-icon {
+            transform: rotate(180deg);
+            color: var(--primary);
+            background: rgba(16, 185, 129, 0.15);
+        }
+        .faq-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s var(--ease), opacity 0.3s var(--ease);
+            opacity: 0;
+            padding: 0 1.6rem;
+        }
+        .faq-item.active .faq-content {
+            max-height: 250px;
+            opacity: 1;
+            padding: 0 1.6rem 1.5rem;
+        }
+        .faq-content p { color: var(--text-dim); line-height: 1.7; font-size: 0.98rem; }
+
+        /* 8. Floating Tooltips */
+        [data-tooltip] { position: relative; }
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute; bottom: calc(100% + 8px); left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            background: rgba(10, 13, 20, 0.96);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.78rem; font-weight: 500; white-space: nowrap;
+            padding: 0.45rem 0.8rem; border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+            z-index: 1000;
+        }
+        [data-tooltip]:hover::after {
+            opacity: 1; transform: translateX(-50%) translateY(0);
+        }
+
+        /* 8. Scroll Entry Animation */
+        .animate-on-scroll {
+            opacity: 0; transform: translateY(24px);
+            transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+        }
+        .animate-on-scroll.visible {
+            opacity: 1; transform: translateY(0);
+        }
+
+        /* 8. Empty States */
+        .empty-state {
+            padding: 2.8rem 1.8rem;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; border-radius: 18px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            background: rgba(16, 22, 35, 0.35);
+        }
+        .empty-state-icon {
+            width: 64px; height: 64px; border-radius: 18px;
+            background: rgba(99, 102, 241, 0.1); color: var(--secondary);
+            display: grid; place-items: center; font-size: 1.7rem;
+            margin-bottom: 1.2rem; filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.3));
+        }
+        .empty-state h4 { font-size: 1.15rem; margin-bottom: 0.4rem; color: var(--text-main); }
+        .empty-state p { font-size: 0.92rem; color: var(--text-dim); max-width: 380px; margin-bottom: 1.2rem; }
+
         /* Hero */
-        .hero { padding: 150px 0 80px; }
+        .hero { padding: 155px 0 85px; }
         .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 3.5rem; align-items: center; }
         .hero-badge {
             display: inline-flex; align-items: center; gap: .6rem;
-            background: rgba(34, 197, 94, 0.09); border: 1px solid var(--border-highlight);
+            background: rgba(16, 185, 129, 0.09); border: 1px solid var(--border-highlight);
             padding: .45rem 1.1rem; border-radius: 100px; color: var(--primary);
             font-weight: 700; font-size: .82rem; margin-bottom: 1.75rem; letter-spacing: .04em;
         }
         .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 0 var(--primary-glow); animation: pulse 2s infinite; }
-        .hero h1 { font-size: clamp(2.4rem, 4.3vw, 3.7rem); margin-bottom: 1.5rem; }
+        .hero h1 { font-size: clamp(2.4rem, 4.3vw, 3.8rem); margin-bottom: 1.5rem; }
         .hero h1 .strike { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 4px; }
         .hero-sub { font-size: clamp(1.08rem, 1.8vw, 1.28rem); color: var(--text-dim); max-width: 620px; margin-bottom: 2.4rem; }
         .hero-sub strong { color: var(--text-main); }
@@ -157,10 +596,10 @@
 
         .shot-frame {
             position: relative; border-radius: 18px; overflow: hidden;
-            border: 1px solid rgba(148,163,184,0.22); background: #0d1117;
-            box-shadow: var(--shadow-neo), 0 0 80px rgba(34,197,94,0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12); background: #0b0f19;
+            box-shadow: var(--shadow-neo), 0 0 80px rgba(16, 185, 129, 0.12);
         }
-        .shot-bar { display: flex; align-items: center; gap: 8px; padding: .7rem 1rem; background: #0b1020; border-bottom: 1px solid var(--border); }
+        .shot-bar { display: flex; align-items: center; gap: 8px; padding: .7rem 1rem; background: #080c14; border-bottom: 1px solid var(--border); }
         .dot { width: 11px; height: 11px; border-radius: 50%; }
         .dot-red { background: #ff5f56; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #27c93f; }
         .shot-url { margin-left: .8rem; font-family: 'JetBrains Mono', monospace; font-size: .75rem; color: var(--text-muted); background: rgba(255,255,255,0.04); padding: .2rem .7rem; border-radius: 6px; }
@@ -168,8 +607,8 @@
         .hero-visual { position: relative; }
         .float-chip {
             position: absolute; display: flex; align-items: center; gap: .6rem;
-            background: rgba(11, 17, 32, 0.92); border: 1px solid var(--border); backdrop-filter: blur(10px);
-            padding: .6rem .9rem; border-radius: 12px; font-size: .82rem; font-weight: 700;
+            background: rgba(10, 13, 20, 0.92); border: 1px solid var(--border); backdrop-filter: blur(12px);
+            padding: .65rem 1rem; border-radius: 12px; font-size: .82rem; font-weight: 700;
             box-shadow: var(--shadow-neo); animation: float 6s ease-in-out infinite;
         }
         .float-chip i { font-size: 1rem; }
@@ -178,7 +617,12 @@
         .chip-3 { bottom: -5%; left: 12%; animation-delay: -4s; } .chip-3 i { color: var(--violet); }
 
         /* Stats */
-        .stats-bar { background: rgba(11, 17, 32, 0.6); backdrop-filter: blur(10px); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 2.8rem 0; }
+        .stats-bar {
+            background: rgba(10, 13, 20, 0.65);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+            padding: 2.8rem 0;
+        }
         .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2rem; text-align: center; }
         .stat-item h3 { font-size: clamp(2rem, 3.6vw, 2.8rem); margin-bottom: .35rem; }
         .stat-item p { color: var(--text-dim); font-weight: 600; font-size: .86rem; letter-spacing: .02em; }
@@ -187,9 +631,10 @@
         .pain-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
         .pain-card {
             background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 1.6rem;
+            backdrop-filter: blur(16px);
             transition: var(--transition);
         }
-        .pain-card:hover { border-color: rgba(248,113,113,0.45); transform: translateY(-4px); }
+        .pain-card:hover { border-color: rgba(248,113,113,0.45); transform: translateY(-4px); box-shadow: 0 10px 30px -10px rgba(248,113,113,0.2); }
         .pain-card i { color: var(--danger); font-size: 1.3rem; margin-bottom: 1rem; display: block; }
         .pain-card h4 { font-size: 1.05rem; margin-bottom: .45rem; letter-spacing: -0.01em; }
         .pain-card p { color: var(--text-dim); font-size: .92rem; }
@@ -201,22 +646,22 @@
         }
         .pain-total strong { color: var(--text-main); }
 
-        /* Live build demo */
-        .demo { background: linear-gradient(180deg, transparent, rgba(34,197,94,0.035), transparent); }
+        /* Live Build Demo */
+        .demo { background: linear-gradient(180deg, transparent, rgba(16,185,129,0.035), transparent); }
         .demo-shell {
             display: grid; grid-template-columns: 1.1fr .9fr; gap: 0;
-            border-radius: var(--radius-lg); overflow: hidden; border: 1px solid rgba(148,163,184,0.2);
-            background: #070b16; box-shadow: var(--shadow-neo);
+            border-radius: var(--radius-lg); overflow: hidden; border: 1px solid rgba(255,255,255,0.12);
+            background: #080c16; box-shadow: var(--shadow-neo);
         }
         .demo-toolbar {
             grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
-            padding: .9rem 1.2rem; border-bottom: 1px solid var(--border); background: #0b1120;
+            padding: .9rem 1.2rem; border-bottom: 1px solid var(--border); background: #0c111e;
         }
         .demo-title { display: flex; align-items: center; gap: .7rem; font-weight: 700; font-size: .95rem; }
-        .demo-timer { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--primary); background: rgba(34,197,94,0.1); border: 1px solid var(--border-highlight); padding: .3rem .8rem; border-radius: 8px; }
+        .demo-timer { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--primary); background: rgba(16,185,129,0.1); border: 1px solid var(--border-highlight); padding: .3rem .8rem; border-radius: 8px; }
         .demo-canvas {
             position: relative; padding: 1.6rem; min-height: 430px;
-            background-image: radial-gradient(rgba(148,163,184,0.16) 1px, transparent 1px);
+            background-image: radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px);
             background-size: 22px 22px; border-right: 1px solid var(--border);
         }
         .block {
@@ -239,7 +684,7 @@
         .demo-status {
             position: absolute; left: 1.6rem; right: 1.6rem; bottom: 1.2rem;
             font-family: 'JetBrains Mono', monospace; font-size: .8rem; color: var(--text-dim);
-            background: rgba(3,7,18,0.85); border: 1px solid var(--border); border-radius: 10px; padding: .6rem .8rem;
+            background: rgba(5,7,12,0.85); border: 1px solid var(--border); border-radius: 10px; padding: .6rem .8rem;
             min-height: 2.6rem;
         }
         .demo-status .ok { color: var(--primary); }
@@ -251,25 +696,35 @@
         .file i { width: 14px; text-align: center; }
         .gates { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1rem; }
         .gate { font-size: .72rem; padding: .25rem .55rem; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); transition: var(--transition); }
-        .gate.pass { color: #04130a; background: var(--primary); border-color: var(--primary); font-weight: 700; }
+        .gate.pass { color: #04130a; background: var(--primary); border-color: var(--primary); font-weight: 700; box-shadow: 0 0 10px rgba(16,185,129,0.35); }
         .demo-cta { text-align: center; margin-top: 2rem; }
         .demo-cta .btn { margin: .4rem; }
 
+        /* Step Importer Interactive Sandbox */
+        .sandbox-wrap {
+            margin-top: 3.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2.4rem;
+            backdrop-filter: blur(16px);
+        }
+        .sandbox-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: stretch;
+        }
+
         /* Before / After */
-        .compare-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--bg-card); }
-        table.compare { width: 100%; border-collapse: collapse; min-width: 720px; }
-        .compare th, .compare td { padding: 1.05rem 1.3rem; text-align: left; border-bottom: 1px solid var(--border); }
-        .compare thead th { font-size: .82rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); background: rgba(3,7,18,0.5); }
-        .compare td:first-child { font-weight: 700; }
-        .compare .manual { color: var(--danger); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-        .compare .studio { color: var(--primary); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
-        .compare tfoot td { font-size: 1.1rem; font-weight: 800; background: rgba(34,197,94,0.06); border-bottom: none; }
+        .compare-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--bg-card); backdrop-filter: blur(16px); }
         .note { color: var(--text-muted); font-size: .85rem; margin-top: 1rem; text-align: center; }
 
         /* Steps */
-        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; counter-reset: step; }
-        .step-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 2rem 1.6rem; position: relative; transition: var(--transition); }
-        .step-card:hover { border-color: var(--border-highlight); transform: translateY(-6px); }
+        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+        .step-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px;
+            padding: 2rem 1.6rem; position: relative; backdrop-filter: blur(16px);
+            transition: var(--transition);
+        }
+        .step-card:hover { border-color: var(--border-highlight); transform: translateY(-6px); box-shadow: 0 12px 30px -10px rgba(16,185,129,0.2); }
         .step-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: .8rem; color: var(--primary); margin-bottom: 1.1rem; display: inline-block; border: 1px solid var(--border-highlight); padding: .15rem .55rem; border-radius: 6px; }
         .step-card i.big { font-size: 1.8rem; display: block; margin-bottom: 1rem; color: var(--secondary); }
         .step-card h3 { font-size: 1.3rem; margin-bottom: .6rem; }
@@ -278,17 +733,18 @@
         /* Features */
         .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
         .feature-card {
-            background: var(--bg-card); border: 1px solid var(--border); padding: 2.2rem; border-radius: var(--radius-lg);
+            background: var(--bg-card); border: 1px solid var(--border); padding: 2.2rem;
+            border-radius: var(--radius-lg); backdrop-filter: blur(16px);
             transition: var(--transition); position: relative; overflow: hidden;
         }
         .feature-card:hover { transform: translateY(-6px); border-color: var(--border-highlight); background: var(--bg-card-hover); box-shadow: var(--shadow-neo); }
         .feature-icon {
             width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center;
             font-size: 1.45rem; margin-bottom: 1.4rem;
-            background: rgba(34,197,94,0.1); color: var(--primary);
+            background: rgba(16,185,129,0.1); color: var(--primary);
         }
-        .fi-cyan { background: rgba(6,182,212,0.1); color: var(--secondary); }
-        .fi-violet { background: rgba(167,139,250,0.12); color: var(--violet); }
+        .fi-cyan { background: rgba(99,102,241,0.12); color: var(--secondary); }
+        .fi-violet { background: rgba(139,92,246,0.12); color: var(--violet); }
         .fi-amber { background: rgba(245,158,11,0.12); color: var(--amber); }
         .feature-card h3 { font-size: 1.3rem; margin-bottom: .8rem; }
         .feature-card p { color: var(--text-dim); font-size: .97rem; }
@@ -303,36 +759,51 @@
         .check-list i { color: var(--primary); margin-top: .3rem; }
         .check-list strong { color: var(--text-main); }
         .code-window {
-            background: #0d1117; border-radius: 18px; border: 1px solid #30363d; box-shadow: var(--shadow-neo);
+            background: #090d16; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: var(--shadow-neo);
             font-family: 'JetBrains Mono', monospace; font-size: .84rem; color: #e6edf3; overflow: hidden;
         }
-        .code-tabs { display: flex; gap: 0; background: #0b1020; border-bottom: 1px solid #30363d; font-size: .76rem; }
-        .code-tabs span { padding: .7rem 1rem; color: var(--text-muted); border-right: 1px solid #30363d; }
-        .code-tabs span.active { color: var(--text-main); background: #0d1117; border-top: 2px solid var(--primary); }
+        .code-tabs { display: flex; gap: 0; background: #070a12; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: .76rem; }
+        .code-tabs span { padding: .7rem 1rem; color: var(--text-muted); border-right: 1px solid rgba(255, 255, 255, 0.08); cursor: pointer; transition: var(--transition); }
+        .code-tabs span.active { color: var(--text-main); background: #090d16; border-top: 2px solid var(--primary); }
         .code-window pre { padding: 1.4rem; overflow-x: auto; line-height: 1.7; }
         .k { color: #ff7b72; } .f { color: #d2a8ff; } .s { color: #a5d6ff; } .c { color: #8b949e; } .n { color: #79c0ff; } .t { color: #ffa657; }
 
         /* ROI */
-        .roi { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; background: var(--bg-card); border: 1px solid var(--border-highlight); border-radius: 28px; padding: 2.6rem; box-shadow: var(--shadow-glow); }
+        .roi {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
+            background: var(--bg-card); border: 1px solid var(--border-highlight);
+            border-radius: 28px; padding: 2.6rem; box-shadow: var(--shadow-glow);
+            backdrop-filter: blur(16px);
+        }
         .roi h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); margin-bottom: 1rem; }
         .roi > div > p { color: var(--text-dim); margin-bottom: 1.8rem; }
         .field { margin-bottom: 1.4rem; }
         .field label { display: flex; justify-content: space-between; font-weight: 700; font-size: .95rem; margin-bottom: .55rem; }
         .field label output { font-family: 'JetBrains Mono', monospace; color: var(--primary); }
-        input[type=range] { width: 100%; accent-color: var(--primary); height: 28px; cursor: pointer; }
         .roi-results { display: grid; gap: 1rem; align-content: center; }
-        .roi-box { background: rgba(3,7,18,0.6); border: 1px solid var(--border); border-radius: 18px; padding: 1.4rem 1.6rem; }
+        .roi-box { background: rgba(5,7,12,0.65); border: 1px solid var(--border); border-radius: 18px; padding: 1.4rem 1.6rem; }
         .roi-box span { display: block; color: var(--text-muted); font-size: .85rem; font-weight: 600; margin-bottom: .3rem; }
         .roi-box strong { font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; }
-        .roi-box.hl { border-color: var(--border-highlight); background: rgba(34,197,94,0.07); }
+        .roi-box.hl { border-color: var(--border-highlight); background: rgba(16,185,129,0.08); box-shadow: 0 0 20px rgba(16,185,129,0.15); }
         .roi-box.hl strong { color: var(--primary); }
 
         /* Pricing */
         .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: stretch; }
-        .plan { background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; padding: 2.4rem 2rem; display: flex; flex-direction: column; transition: var(--transition); }
-        .plan:hover { transform: translateY(-6px); }
-        .plan.featured { border: 2px solid var(--primary); box-shadow: var(--shadow-glow); position: relative; background: linear-gradient(180deg, rgba(34,197,94,0.08), rgba(15,23,42,0.85)); }
-        .plan .ribbon { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--gradient-linear); color: #04130a; font-weight: 800; font-size: .76rem; padding: .3rem .9rem; border-radius: 999px; letter-spacing: .06em; white-space: nowrap; }
+        .plan {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px;
+            padding: 2.4rem 2rem; display: flex; flex-direction: column; backdrop-filter: blur(16px);
+            transition: var(--transition);
+        }
+        .plan:hover { transform: translateY(-6px); border-color: rgba(255, 255, 255, 0.18); }
+        .plan.featured {
+            border: 2px solid var(--primary); box-shadow: var(--shadow-glow); position: relative;
+            background: linear-gradient(180deg, rgba(16,185,129,0.08), rgba(16,22,35,0.85));
+        }
+        .plan .ribbon {
+            position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+            background: var(--gradient-linear); color: #04130a; font-weight: 800; font-size: .76rem;
+            padding: .3rem .9rem; border-radius: 999px; letter-spacing: .06em; white-space: nowrap;
+        }
         .plan h3 { font-size: 1.5rem; margin-bottom: .4rem; }
         .plan .tagline { color: var(--text-dim); font-size: .95rem; margin-bottom: 1.4rem; min-height: 3em; }
         .plan .price { font-size: 2.4rem; font-weight: 800; margin-bottom: 1.4rem; letter-spacing: -0.03em; }
@@ -345,30 +816,27 @@
 
         /* Trust */
         .trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
-        .trust-card { padding: 1.7rem; border-radius: 18px; border: 1px solid var(--border); background: rgba(11,17,32,0.6); }
+        .trust-card {
+            padding: 1.7rem; border-radius: 18px; border: 1px solid var(--border);
+            background: rgba(10,13,20,0.65); backdrop-filter: blur(16px);
+        }
         .trust-card i { font-size: 1.4rem; color: var(--secondary); margin-bottom: .9rem; display: block; }
         .trust-card h4 { font-size: 1.05rem; margin-bottom: .45rem; letter-spacing: -0.01em; }
         .trust-card p { color: var(--text-dim); font-size: .9rem; }
 
-        /* FAQ */
-        .faq { max-width: 860px; margin: 0 auto; display: grid; gap: .9rem; }
-        details { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; transition: var(--transition); }
-        details[open] { border-color: var(--border-highlight); }
-        summary { list-style: none; cursor: pointer; padding: 1.3rem 1.5rem; font-weight: 700; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; min-height: 56px; }
-        summary::-webkit-details-marker { display: none; }
-        summary i { color: var(--primary); transition: transform .25s var(--ease); }
-        details[open] summary i { transform: rotate(45deg); }
-        details p { padding: 0 1.5rem 1.4rem; color: var(--text-dim); }
-
         /* Final CTA */
         .final-cta { text-align: center; }
-        .final-card { border-radius: 32px; padding: 4.5rem 2rem; border: 1px solid var(--border-highlight); background: radial-gradient(circle at 50% 0%, rgba(34,197,94,0.16), transparent 60%), var(--bg-elev); box-shadow: var(--shadow-glow); }
+        .final-card {
+            border-radius: 32px; padding: 4.8rem 2rem; border: 1px solid var(--border-highlight);
+            background: radial-gradient(circle at 50% 0%, rgba(16,185,129,0.18), transparent 60%), var(--bg-elev);
+            box-shadow: var(--shadow-glow); backdrop-filter: blur(20px);
+        }
         .final-card h2 { font-size: clamp(2.1rem, 5vw, 3.8rem); margin-bottom: 1.3rem; }
         .final-card p { color: var(--text-dim); font-size: 1.2rem; max-width: 720px; margin: 0 auto 2.4rem; }
         .final-card .hero-btns { justify-content: center; }
 
         /* Footer */
-        footer { padding: 70px 0 36px; border-top: 1px solid var(--border); background: rgba(11, 17, 32, 0.85); }
+        footer { padding: 75px 0 36px; border-top: 1px solid var(--border); background: rgba(8, 11, 18, 0.9); backdrop-filter: blur(16px); }
         .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
         .footer-brand p { color: var(--text-dim); margin: 1.3rem 0; max-width: 320px; }
         .footer-links h4 { margin-bottom: 1.2rem; font-size: 1.02rem; }
@@ -378,52 +846,37 @@
         .footer-links a:hover { color: var(--primary); }
         .footer-bottom { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding-top: 1.8rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: .88rem; }
         .social-links { display: flex; gap: 1.2rem; }
-        .social-links a { font-size: 1.35rem; color: var(--text-muted); transition: var(--transition); display: inline-grid; place-items: center; width: 44px; height: 44px; }
-        .social-links a:hover { color: var(--primary); }
+        .social-links a { font-size: 1.35rem; color: var(--text-muted); transition: var(--transition); display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: rgba(255,255,255,0.03); }
+        .social-links a:hover { color: var(--primary); background: rgba(16,185,129,0.1); }
 
-        /* Sticky mobile CTA */
+        /* Sticky Mobile CTA */
         .mobile-cta { display: none; }
 
-        /* Reveal */
-        .reveal { opacity: 0; transform: translateY(22px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
-        .reveal.in { opacity: 1; transform: none; }
-
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); } 70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); } 70% { box-shadow: 0 0 0 10px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-            .reveal, .block, .file { opacity: 1 !important; transform: none !important; }
+            .animate-on-scroll, .block, .file { opacity: 1 !important; transform: none !important; }
         }
 
         @media (max-width: 1080px) {
-            .hero-grid, .showcase, .roi { grid-template-columns: 1fr; }
+            .hero-grid, .showcase, .roi, .sandbox-grid { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: repeat(3, 1fr); }
             .pain-grid, .trust-grid, .steps-grid { grid-template-columns: repeat(2, 1fr); }
             .features-grid, .pricing-grid { grid-template-columns: 1fr 1fr; }
             .float-chip { display: none; }
             .footer-grid { grid-template-columns: 1fr 1fr; }
-        .suite-switcher {
-            display: inline-flex; align-items: center; gap: 4px;
-            background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border);
-            padding: 4px; border-radius: 9999px; backdrop-filter: blur(8px);
         }
-        .suite-pill {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 5px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700;
-            text-decoration: none; color: var(--text-dim); transition: var(--transition);
-        }
-        .suite-pill:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.05); }
-        .suite-pill.active {
-            background: rgba(34, 197, 94, 0.16); color: var(--primary);
-            border: 1px solid var(--border-highlight); box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
-        }
+
         @media (max-width: 1024px) {
             .suite-switcher { display: none; }
         }
-        @media (max-width: 760px) {
+
+        @media (max-width: 768px) {
             section { padding: 80px 0; }
-            .nav-links a:not(.btn) { display: none; }
+            .nav-links { display: none; }
+            .menu-toggle { display: flex; }
             .demo-shell { grid-template-columns: 1fr; }
             .demo-canvas { border-right: none; border-bottom: 1px solid var(--border); }
             .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -431,7 +884,7 @@
             .roi { padding: 1.6rem; }
             .mobile-cta {
                 display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; gap: .6rem;
-                padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); background: rgba(3,7,18,0.95); border-top: 1px solid var(--border); backdrop-filter: blur(12px);
+                padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); background: rgba(5,7,12,0.96); border-top: 1px solid var(--border); backdrop-filter: blur(16px);
             }
             .mobile-cta .btn { flex: 1; min-height: 48px; font-size: .95rem; padding: 0 1rem; }
             footer { padding-bottom: 100px; }
@@ -439,6 +892,57 @@
     </style>
 </head>
 <body>
+
+    <!-- 1. Background Auroras -->
+    <div class="aurora-container" aria-hidden="true">
+        <div class="aurora aurora-1"></div>
+        <div class="aurora aurora-2"></div>
+        <div class="aurora aurora-3"></div>
+    </div>
+
+    <!-- 5. Splash Screen (Fullscreen Loader) -->
+    <div id="splashScreen" class="splash-screen" aria-label="Loading WPipe Studio">
+        <div class="splash-logo">
+            <div class="splash-logo-icon">
+                <i class="fas fa-layer-group" aria-hidden="true"></i>
+            </div>
+            <div class="splash-logo-text">WPipe Studio</div>
+        </div>
+        <div class="splash-progress-track">
+            <div class="splash-progress-bar" id="splashBar"></div>
+        </div>
+        <div class="splash-tagline">Initializing Architecture Sandbox…</div>
+    </div>
+
+    <!-- 4. Mobile Drawer Overlay & Panel -->
+    <div class="drawer-overlay" id="drawerOverlay" aria-hidden="true"></div>
+    <aside class="drawer" id="mobileDrawer" aria-label="Mobile navigation drawer">
+        <div>
+            <div class="drawer-header">
+                <a href="#" class="logo">
+                    <span class="logo-mark"><i class="fas fa-layer-group" aria-hidden="true"></i></span>
+                    WPipe Studio
+                </a>
+                <button class="drawer-close" id="drawerClose" aria-label="Close menu">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="drawer-links">
+                <a href="#demo" class="drawer-link">Live Demo <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <a href="#sandbox" class="drawer-link">Step Importer <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <a href="#compare" class="drawer-link">Comparison <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <a href="#features" class="drawer-link">Features <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <a href="#roi" class="drawer-link">ROI Calculator <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <a href="#pricing" class="drawer-link">Pricing <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <a href="#faq" class="drawer-link">FAQ <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+            </div>
+        </div>
+        <div>
+            <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-glossy" style="width: 100%;">
+                <span class="btn-text"><i class="fas fa-crown" aria-hidden="true"></i> Get Pro License</span>
+            </a>
+        </div>
+    </aside>
 
     <!-- Navigation -->
     <nav id="navbar" aria-label="Main navigation">
@@ -448,18 +952,22 @@
                 WPipe Studio <small>PRO</small>
             </a>
             <div class="suite-switcher" role="navigation" aria-label="Suite Switcher">
-                <span class="suite-pill active"><i class="fas fa-compass" aria-hidden="true"></i> Web & Docs</span>
-                <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="suite-pill"><i class="fas fa-bolt" aria-hidden="true" style="color: #06b6d4;"></i> Studio Canvas</a>
-                <a href="https://portal.wisrovi.dev" target="_blank" rel="noopener" class="suite-pill"><i class="fas fa-key" aria-hidden="true" style="color: #a78bfa;"></i> Portal Licencias</a>
+                <span class="suite-pill active"><i class="fas fa-compass" aria-hidden="true"></i> Web &amp; Docs</span>
+                <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="suite-pill"><i class="fas fa-bolt" aria-hidden="true" style="color: var(--cyan);"></i> Studio Canvas</a>
+                <a href="https://portal.wisrovi.dev" target="_blank" rel="noopener" class="suite-pill"><i class="fas fa-key" aria-hidden="true" style="color: var(--violet);"></i> Portal Licencias</a>
             </div>
             <div class="nav-links">
                 <a href="#demo">Live Demo</a>
+                <a href="#sandbox">Sandbox</a>
                 <a href="#features">Features</a>
                 <a href="#pricing">Pricing</a>
-                <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-sm">
-                    <i class="fas fa-crown" aria-hidden="true"></i> Get Pro
+                <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-sm btn-glossy" data-tooltip="Instant access with cryptographically signed license">
+                    <span class="btn-text"><i class="fas fa-crown" aria-hidden="true"></i> Get Pro</span>
                 </a>
             </div>
+            <button class="menu-toggle" id="menuToggle" aria-label="Open mobile navigation menu" aria-expanded="false" aria-controls="mobileDrawer">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
         </div>
     </nav>
 
@@ -467,7 +975,7 @@
     <!-- Hero -->
     <section class="hero">
         <div class="container hero-grid">
-            <div>
+            <div class="animate-on-scroll">
                 <div class="hero-badge"><span class="pulse" aria-hidden="true"></span> Visual Pipelines → Production Python Microservices</div>
                 <h1>Stop spending <span class="strike">weeks</span> on backend plumbing. <span class="gradient-text">Ship in minutes.</span></h1>
                 <p class="hero-sub">
@@ -476,8 +984,8 @@
                     Docker, Makefile and a Pytest suite — that passes <strong>ruff, mypy and pytest</strong> before you ever open it.
                 </p>
                 <div class="hero-btns">
-                    <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-main">
-                        Try it free in your browser <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                    <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-main btn-glossy">
+                        <span class="btn-text">Try it free in your browser <i class="fas fa-arrow-right" aria-hidden="true"></i></span>
                     </a>
                     <a href="#demo" class="btn btn-outline">
                         <i class="fas fa-play" aria-hidden="true"></i> Watch it build
@@ -489,14 +997,16 @@
                     <span><i class="fas fa-gift" aria-hidden="true"></i> Free plan, no card</span>
                 </div>
             </div>
-            <div class="hero-visual">
+            <div class="hero-visual animate-on-scroll">
                 <div class="shot-frame">
                     <div class="shot-bar" aria-hidden="true">
                         <span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span>
                         <span class="shot-url">studio.wisrovi.dev</span>
                     </div>
-                    <img src="docs/marketing/wpipe_studio_ide_full.webp" width="1440" height="813"
-                         alt="WPipe Studio IDE: block palette on the left, visual pipeline canvas in the center, generated microservice files and live simulation panels.">
+                    <!-- 6. Smooth image loading -->
+                    <img class="smooth-load" src="docs/marketing/wpipe_studio_ide_full.webp" width="1440" height="813"
+                         alt="WPipe Studio IDE: block palette on the left, visual pipeline canvas in the center, generated microservice files and live simulation panels."
+                         onload="this.classList.add('loaded')">
                 </div>
                 <div class="float-chip chip-1"><i class="fas fa-circle-check" aria-hidden="true"></i> 6/6 quality gates passed</div>
                 <div class="float-chip chip-2"><i class="fas fa-file-code" aria-hidden="true"></i> 36 files generated</div>
@@ -509,11 +1019,11 @@
     <div class="stats-bar">
         <div class="container">
             <div class="stats-grid">
-                <div class="stat-item"><h3 class="gradient-text" data-count="36">36</h3><p>Production files per build</p></div>
-                <div class="stat-item"><h3 class="gradient-text" data-count="197">197</h3><p>Ready-made official steps</p></div>
-                <div class="stat-item"><h3 class="gradient-text" data-count="6">6</h3><p>Automated quality gates</p></div>
-                <div class="stat-item"><h3 class="gradient-text" data-count="11">11</h3><p>Visual blocks incl. Parallel &amp; AI</p></div>
-                <div class="stat-item"><h3 class="gradient-text">0&nbsp;€</h3><p>Cloud servers needed</p></div>
+                <div class="stat-item animate-on-scroll"><h3 class="gradient-text" data-count="36">36</h3><p>Production files per build</p></div>
+                <div class="stat-item animate-on-scroll"><h3 class="gradient-text" data-count="197">197</h3><p>Ready-made official steps</p></div>
+                <div class="stat-item animate-on-scroll"><h3 class="gradient-text" data-count="6">6</h3><p>Automated quality gates</p></div>
+                <div class="stat-item animate-on-scroll"><h3 class="gradient-text" data-count="11">11</h3><p>Visual blocks incl. Parallel &amp; AI</p></div>
+                <div class="stat-item animate-on-scroll"><h3 class="gradient-text">0&nbsp;€</h3><p>Cloud servers needed</p></div>
             </div>
         </div>
     </div>
@@ -521,39 +1031,45 @@
     <!-- Pain -->
     <section id="pain">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Sound familiar?</span>
                 <h2>Your business logic takes an afternoon.<br><span class="gradient-text">Everything around it takes weeks.</span></h2>
                 <p>Every new microservice repeats the same invisible work before a single line of real value ships.</p>
             </div>
             <div class="pain-grid">
-                <div class="pain-card reveal"><i class="fas fa-folder-tree" aria-hidden="true"></i><h4>Project scaffolding</h4><p>Folder layout, settings, config YAML, entrypoints, packaging.</p><div class="cost">≈ 1–2 days</div></div>
-                <div class="pain-card reveal"><i class="fas fa-diagram-project" aria-hidden="true"></i><h4>Orchestration glue</h4><p>Wiring steps, conditions, loops, parallel branches and background jobs by hand.</p><div class="cost">≈ 2–4 days</div></div>
-                <div class="pain-card reveal"><i class="fas fa-shapes" aria-hidden="true"></i><h4>Typed contracts</h4><p>Request, response and context DTOs that drift from the code the moment you refactor.</p><div class="cost">≈ 1–2 days</div></div>
-                <div class="pain-card reveal"><i class="fab fa-docker" aria-hidden="true"></i><h4>Docker &amp; Makefile</h4><p>Images, compose files, env vars, run and test targets that work on every machine.</p><div class="cost">≈ 1–2 days</div></div>
-                <div class="pain-card reveal"><i class="fas fa-vial" aria-hidden="true"></i><h4>Test suite</h4><p>API, DTO, state and pipeline tests — the part that always gets postponed.</p><div class="cost">≈ 2–3 days</div></div>
-                <div class="pain-card reveal"><i class="fas fa-broom" aria-hidden="true"></i><h4>Lint &amp; type fixes</h4><p>Making ruff, mypy, black and isort happy across the whole codebase.</p><div class="cost">≈ 1 day</div></div>
-                <div class="pain-card reveal"><i class="fas fa-bug" aria-hidden="true"></i><h4>Debugging the flow</h4><p>Print statements to understand which branch ran and what the context looked like.</p><div class="cost">≈ 1–3 days</div></div>
-                <div class="pain-card reveal"><i class="fas fa-book" aria-hidden="true"></i><h4>Docs &amp; diagrams</h4><p>README, architecture diagram and work plan nobody updates after release.</p><div class="cost">≈ 1 day</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-folder-tree" aria-hidden="true"></i><h4>Project scaffolding</h4><p>Folder layout, settings, config YAML, entrypoints, packaging.</p><div class="cost">≈ 1–2 days</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-diagram-project" aria-hidden="true"></i><h4>Orchestration glue</h4><p>Wiring steps, conditions, loops, parallel branches and background jobs by hand.</p><div class="cost">≈ 2–4 days</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-shapes" aria-hidden="true"></i><h4>Typed contracts</h4><p>Request, response and context DTOs that drift from the code the moment you refactor.</p><div class="cost">≈ 1–2 days</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fab fa-docker" aria-hidden="true"></i><h4>Docker &amp; Makefile</h4><p>Images, compose files, env vars, run and test targets that work on every machine.</p><div class="cost">≈ 1–2 days</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-vial" aria-hidden="true"></i><h4>Test suite</h4><p>API, DTO, state and pipeline tests — the part that always gets postponed.</p><div class="cost">≈ 2–3 days</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-broom" aria-hidden="true"></i><h4>Lint &amp; type fixes</h4><p>Making ruff, mypy, black and isort happy across the whole codebase.</p><div class="cost">≈ 1 day</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-bug" aria-hidden="true"></i><h4>Debugging the flow</h4><p>Print statements to understand which branch ran and what the context looked like.</p><div class="cost">≈ 1–3 days</div></div>
+                <div class="pain-card animate-on-scroll"><i class="fas fa-book" aria-hidden="true"></i><h4>Docs &amp; diagrams</h4><p>README, architecture diagram and work plan nobody updates after release.</p><div class="cost">≈ 1 day</div></div>
             </div>
-            <div class="pain-total reveal">Add it up: <strong>roughly 2–3 weeks per microservice</strong> of work your customers never see. <strong class="gradient-text">WPipe Studio does all of it while you watch.</strong></div>
+            <div class="pain-total animate-on-scroll">Add it up: <strong>roughly 2–3 weeks per microservice</strong> of work your customers never see. <strong class="gradient-text">WPipe Studio does all of it while you watch.</strong></div>
         </div>
     </section>
 
     <!-- Live build demo -->
     <section id="demo" class="demo">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-bolt" aria-hidden="true"></i> Watch it build</span>
                 <h2>From blank canvas to <span class="gradient-text">verified microservice</span></h2>
                 <p>This is the real workflow: design the pipeline with blocks, then the local engine generates and verifies the whole project.</p>
             </div>
-            <div class="demo-shell reveal" aria-label="Animated demonstration of WPipe Studio generating a microservice">
+            <div class="demo-shell animate-on-scroll" aria-label="Animated demonstration of WPipe Studio generating a microservice">
                 <div class="demo-toolbar">
                     <div class="demo-title"><i class="fas fa-layer-group" style="color: var(--primary);" aria-hidden="true"></i> order_risk_pipeline.wpipe</div>
                     <div style="display:flex; gap:.6rem; align-items:center;">
                         <span class="demo-timer" id="demoTimer" aria-live="off">00:00</span>
-                        <button class="btn btn-outline btn-sm" id="demoReplay" type="button"><i class="fas fa-rotate-right" aria-hidden="true"></i> Replay</button>
+                        <!-- 2. Button with loading capability -->
+                        <button class="btn btn-outline btn-sm" id="demoReplay" type="button" aria-label="Replay simulation animation">
+                            <span class="btn-text"><i class="fas fa-rotate-right" aria-hidden="true"></i> Replay</span>
+                            <span class="btn-spinner" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg>
+                            </span>
+                        </button>
                     </div>
                 </div>
                 <div class="demo-canvas" id="demoCanvas">
@@ -571,12 +1087,104 @@
                     <div class="files-head"><span>generated microservice</span><span><b id="fileCount">0</b> / 36 files</span></div>
                     <div id="fileList"></div>
                     <div class="gates" id="gates">
-                        <span class="gate">AST</span><span class="gate">ruff</span><span class="gate">mypy</span><span class="gate">black/isort</span><span class="gate">pytest ≥60%</span><span class="gate">dry_run</span>
+                        <span class="gate" data-tooltip="Abstract Syntax Tree grammar validation">AST</span>
+                        <span class="gate" data-tooltip="Lightning fast Python linter">ruff</span>
+                        <span class="gate" data-tooltip="Strict static type checking">mypy</span>
+                        <span class="gate" data-tooltip="Deterministic code formatter & imports">black/isort</span>
+                        <span class="gate" data-tooltip="Automated test suite with strict coverage">pytest ≥60%</span>
+                        <span class="gate" data-tooltip="Real end-to-end execution without mocks">dry_run</span>
                     </div>
                 </div>
             </div>
-            <div class="demo-cta reveal">
-                <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-main">Build yours now — free <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+            <div class="demo-cta animate-on-scroll">
+                <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-main btn-glossy">
+                    <span class="btn-text">Build yours now — free <i class="fas fa-arrow-right" aria-hidden="true"></i></span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3 & 6. Step Importer & Drag-and-Drop Sandbox -->
+    <section id="sandbox" style="padding-top: 20px;">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="eyebrow"><i class="fas fa-flask" aria-hidden="true"></i> Interactive Playground</span>
+                <h2>Upload custom step. <span class="gradient-text">Inspect contract in realtime.</span></h2>
+                <p>Support for Dialect A (@step + @to_obj) and Dialect B (BaseStep). Test file drag-and-drop with instant AST contract inspection.</p>
+            </div>
+
+            <div class="sandbox-wrap glass-card animate-on-scroll">
+                <div class="sandbox-grid">
+                    <!-- Dropzone -->
+                    <div>
+                        <div class="dropzone" id="stepDropzone" role="button" tabindex="0" aria-label="Dropzone for python steps">
+                            <div style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem;">
+                                <i class="fas fa-cloud-arrow-up" aria-hidden="true"></i>
+                            </div>
+                            <h4 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Drag &amp; drop your step file here</h4>
+                            <p style="color: var(--text-dim); font-size: 0.95rem; margin-bottom: 1.2rem;">Accepts <span class="mono">.py</span> custom step or <span class="mono">.wpipe</span> workflow definition</p>
+                            <div style="display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-outline btn-sm" id="btnSimulateUpload">
+                                    <span class="btn-text"><i class="fas fa-file-code" aria-hidden="true"></i> Load Sample Step</span>
+                                    <span class="btn-spinner" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg>
+                                    </span>
+                                </button>
+                                <button type="button" class="btn btn-outline btn-sm" id="btnClearSandbox">
+                                    <i class="fas fa-trash-can" aria-hidden="true"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inspector Panel: Empty State, Skeletons or Results -->
+                    <div id="inspectorPanel">
+                        <!-- 8. Default Empty State -->
+                        <div class="empty-state" id="emptyStateSandbox">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-code-branch" aria-hidden="true"></i>
+                            </div>
+                            <h4>No step uploaded yet</h4>
+                            <p>Drag a Python step file into the dropzone or click "Load Sample Step" to parse reads, writes, and DTO contracts.</p>
+                            <span class="pill">DIALECT A &amp; B READY</span>
+                        </div>
+
+                        <!-- 6. Skeleton Loader (hidden until loading) -->
+                        <div id="skeletonSandbox" style="display: none; padding: 1.5rem; flex-direction: column; gap: 1rem;">
+                            <div class="skeleton" style="height: 28px; width: 60%;"></div>
+                            <div class="skeleton" style="height: 18px; width: 90%;"></div>
+                            <div class="skeleton" style="height: 90px; width: 100%;"></div>
+                            <div class="skeleton" style="height: 35px; width: 45%;"></div>
+                        </div>
+
+                        <!-- Parsed Result (hidden by default) -->
+                        <div id="resultSandbox" style="display: none; background: rgba(5,7,12,0.85); border: 1px solid var(--border-highlight); border-radius: 18px; padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <div>
+                                    <span style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--primary); font-weight:700;">AST PARSER V2.5</span>
+                                    <h4 style="font-size: 1.25rem;">DeepFaceExtractionStep</h4>
+                                </div>
+                                <span class="gate pass" style="font-size: 0.75rem;">DIALECT A · @to_obj</span>
+                            </div>
+                            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1rem;">Executes DeepFace demographic and emotion analysis on biometric frames.</p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; margin-bottom: 1rem;">
+                                <div style="background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 8px;">
+                                    <span style="color: var(--secondary); display:block; font-weight:700; margin-bottom: 0.3rem;"><i class="fas fa-eye"></i> READS:</span>
+                                    <code>ctx.image_raw</code><br>
+                                    <code>ctx.bbox_face</code>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 8px;">
+                                    <span style="color: var(--primary); display:block; font-weight:700; margin-bottom: 0.3rem;"><i class="fas fa-pen-to-square"></i> WRITES:</span>
+                                    <code>ctx.deepface_raw</code><br>
+                                    <code>ctx.face_verified</code>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.8rem; color: var(--text-muted);">
+                                <i class="fas fa-circle-check" style="color: var(--primary);"></i> Contract validated without LLM token cost
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -584,18 +1192,18 @@
     <!-- Before / After -->
     <section id="compare">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-scale-balanced" aria-hidden="true"></i> Before vs. after</span>
                 <h2>The same microservice. <span class="gradient-text">Two very different weeks.</span></h2>
-                <p>Ask yourself honestly how long each of these took on your last project.</p>
+                <p>Click on any row below to highlight and inspect typical plumbing breakdown.</p>
             </div>
-            <div class="compare-wrap reveal">
-                <table class="compare">
+            <div class="compare-wrap animate-on-scroll">
+                <table class="compare" id="compareTable">
                     <caption class="sr-only">Typical manual effort compared with WPipe Studio</caption>
                     <thead><tr><th scope="col">Task</th><th scope="col">By hand (typical)</th><th scope="col">With WPipe Studio</th><th scope="col">How</th></tr></thead>
                     <tbody>
                         <tr><td>Design the pipeline flow</td><td class="manual">whiteboard + code</td><td class="studio">minutes</td><td>Drag &amp; snap blocks, real C-shaped control blocks</td></tr>
-                        <tr><td>Project scaffolding (36 files)</td><td class="manual">1–2 days</td><td class="studio">1 click</td><td>FastAPI + WPipe DAG + config + packaging</td></tr>
+                        <tr class="selected"><td>Project scaffolding (36 files)</td><td class="manual">1–2 days</td><td class="studio">1 click</td><td>FastAPI + WPipe DAG + config + packaging</td></tr>
                         <tr><td>Conditions, loops, parallel, background</td><td class="manual">2–4 days</td><td class="studio">1 click</td><td>Condition · For · While · Parallel · Background compiled to WPipe</td></tr>
                         <tr><td>Typed DTO contracts</td><td class="manual">1–2 days</td><td class="studio">1 click</td><td>Pydantic Context / Request / Response DTOs</td></tr>
                         <tr><td>Docker, compose &amp; Makefile</td><td class="manual">1–2 days</td><td class="studio">1 click</td><td>Dockerfile, docker-compose.yml, Makefile, run_tests_docker.sh</td></tr>
@@ -612,17 +1220,17 @@
     </section>
 
     <!-- How it works -->
-    <section id="how" style="background: rgba(6,182,212,0.025);">
+    <section id="how" style="background: rgba(99,102,241,0.03);">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-route" aria-hidden="true"></i> How it works</span>
                 <h2>Four steps. <span class="gradient-text">Zero boilerplate.</span></h2>
             </div>
             <div class="steps-grid">
-                <div class="step-card reveal"><span class="step-num">01 · DESIGN</span><i class="fas fa-puzzle-piece big" aria-hidden="true"></i><h3>Snap blocks together</h3><p>Pick from 197 official steps, describe custom ones with AI, or attach your own <span class="mono">.py</span>. Control flow is visual and real.</p></div>
-                <div class="step-card reveal"><span class="step-num">02 · SIMULATE</span><i class="fas fa-flag-checkered big" aria-hidden="true"></i><h3>Run it live</h3><p>Green flag, breakpoints, step-over and a live context table. See exactly what every step reads and writes.</p></div>
-                <div class="step-card reveal"><span class="step-num">03 · GENERATE</span><i class="fas fa-wand-magic-sparkles big" aria-hidden="true"></i><h3>Compile to Python</h3><p>The local engine emits a complete, idiomatic microservice — and preserves your hand-written code on regeneration.</p></div>
-                <div class="step-card reveal"><span class="step-num">04 · SHIP</span><i class="fas fa-rocket big" aria-hidden="true"></i><h3>Verified &amp; deployable</h3><p>Lint, typing, tests and dry-run pass before you download. <span class="mono">make into</span>, <span class="mono">docker compose up</span>, done.</p></div>
+                <div class="step-card animate-on-scroll"><span class="step-num">01 · DESIGN</span><i class="fas fa-puzzle-piece big" aria-hidden="true"></i><h3>Snap blocks together</h3><p>Pick from 197 official steps, describe custom ones with AI, or attach your own <span class="mono">.py</span>. Control flow is visual and real.</p></div>
+                <div class="step-card animate-on-scroll"><span class="step-num">02 · SIMULATE</span><i class="fas fa-flag-checkered big" aria-hidden="true"></i><h3>Run it live</h3><p>Green flag, breakpoints, step-over and a live context table. See exactly what every step reads and writes.</p></div>
+                <div class="step-card animate-on-scroll"><span class="step-num">03 · GENERATE</span><i class="fas fa-wand-magic-sparkles big" aria-hidden="true"></i><h3>Compile to Python</h3><p>The local engine emits a complete, idiomatic microservice — and preserves your hand-written code on regeneration.</p></div>
+                <div class="step-card animate-on-scroll"><span class="step-num">04 · SHIP</span><i class="fas fa-rocket big" aria-hidden="true"></i><h3>Verified &amp; deployable</h3><p>Lint, typing, tests and dry-run pass before you download. <span class="mono">make into</span>, <span class="mono">docker compose up</span>, done.</p></div>
             </div>
         </div>
     </section>
@@ -630,21 +1238,21 @@
     <!-- Features -->
     <section id="features">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-star" aria-hidden="true"></i> Everything included</span>
                 <h2>A full IDE for pipelines, <span class="gradient-text">not a toy diagram tool</span></h2>
                 <p>Every block maps to real, production WPipe code. What you see on the canvas is exactly what runs.</p>
             </div>
             <div class="features-grid">
-                <div class="feature-card reveal"><div class="feature-icon"><i class="fas fa-puzzle-piece" aria-hidden="true"></i></div><h3>Real control-flow blocks</h3><p>Condition (single &amp; dual branch), For, While, Parallel with merge policies and non-blocking Background tasks — nested as deep as your logic needs.</p></div>
-                <div class="feature-card reveal"><div class="feature-icon fi-cyan"><i class="fas fa-bug" aria-hidden="true"></i></div><h3>Live simulation &amp; debugger</h3><p>Step through the pipeline with breakpoints (F5 / F10), payload presets for REST, Kafka, Redis and Cron, and a mutation table of the context at every step.</p></div>
-                <div class="feature-card reveal"><div class="feature-icon fi-violet"><i class="fas fa-file-code" aria-hidden="true"></i></div><h3>36-file production project</h3><p>FastAPI app, WPipe DAG, Pydantic DTOs, services, utils, config YAML, Dockerfile, compose, Makefile, pyproject and a full test suite.</p></div>
-                <div class="feature-card reveal"><div class="feature-icon fi-amber"><i class="fas fa-shield-halved" aria-hidden="true"></i></div><h3>6 quality gates</h3><p>AST syntax, ruff, mypy, black/isort, pytest with ≥ 60% coverage and a WPipe dry-run. If it does not pass, it does not ship.</p></div>
-                <div class="feature-card reveal"><div class="feature-icon"><i class="fas fa-boxes-stacked" aria-hidden="true"></i></div><h3>197-step official catalog</h3><p>Connectivity, databases, security, AI, vision and more — versioned, documented and configurable from inside each block.</p></div>
-                <div class="feature-card reveal"><div class="feature-icon fi-cyan"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></div><h3>AI &amp; custom steps</h3><p>Describe a step in plain language or attach your own Python file. Studio emits typed states and DTO contracts for it.</p><span class="pill">PRO</span></div>
-                <div class="feature-card reveal"><div class="feature-icon fi-violet"><i class="fas fa-code-merge" aria-hidden="true"></i></div><h3>Smart AST merge</h3><p>Regenerate after changing the canvas without losing the code you wrote by hand. Studio merges at the syntax-tree level.</p><span class="pill">PRO</span></div>
-                <div class="feature-card reveal"><div class="feature-icon fi-amber"><i class="fas fa-diagram-project" aria-hidden="true"></i></div><h3>DAG &amp; work plan</h3><p>Interactive Mermaid flowchart with pan, zoom and SVG export, plus an executable architecture work plan for your team.</p></div>
-                <div class="feature-card reveal"><div class="feature-icon"><i class="fas fa-terminal" aria-hidden="true"></i></div><h3>Terminal, tests &amp; .env inside</h3><p>VS Code-style workspace with integrated terminal, pytest runner, problems panel, run history and a visual <span class="mono">.env</span> manager.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon"><i class="fas fa-puzzle-piece" aria-hidden="true"></i></div><h3>Real control-flow blocks</h3><p>Condition (single &amp; dual branch), For, While, Parallel with merge policies and non-blocking Background tasks — nested as deep as your logic needs.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon fi-cyan"><i class="fas fa-bug" aria-hidden="true"></i></div><h3>Live simulation &amp; debugger</h3><p>Step through the pipeline with breakpoints (F5 / F10), payload presets for REST, Kafka, Redis and Cron, and a mutation table of the context at every step.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon fi-violet"><i class="fas fa-file-code" aria-hidden="true"></i></div><h3>36-file production project</h3><p>FastAPI app, WPipe DAG, Pydantic DTOs, services, utils, config YAML, Dockerfile, compose, Makefile, pyproject and a full test suite.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon fi-amber"><i class="fas fa-shield-halved" aria-hidden="true"></i></div><h3>6 quality gates</h3><p>AST syntax, ruff, mypy, black/isort, pytest with ≥ 60% coverage and a WPipe dry-run. If it does not pass, it does not ship.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon"><i class="fas fa-boxes-stacked" aria-hidden="true"></i></div><h3>197-step official catalog</h3><p>Connectivity, databases, security, AI, vision and more — versioned, documented and configurable from inside each block.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon fi-cyan"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></div><h3>AI &amp; custom steps</h3><p>Describe a step in plain language or attach your own Python file. Studio emits typed states and DTO contracts for it.</p><span class="pill">PRO</span></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon fi-violet"><i class="fas fa-code-merge" aria-hidden="true"></i></div><h3>Smart AST merge</h3><p>Regenerate after changing the canvas without losing the code you wrote by hand. Studio merges at the syntax-tree level.</p><span class="pill">PRO</span></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon fi-amber"><i class="fas fa-diagram-project" aria-hidden="true"></i></div><h3>DAG &amp; work plan</h3><p>Interactive Mermaid flowchart with pan, zoom and SVG export, plus an executable architecture work plan for your team.</p></div>
+                <div class="feature-card animate-on-scroll"><div class="feature-icon"><i class="fas fa-terminal" aria-hidden="true"></i></div><h3>Terminal, tests &amp; .env inside</h3><p>VS Code-style workspace with integrated terminal, pytest runner, problems panel, run history and a visual <span class="mono">.env</span> manager.</p></div>
             </div>
         </div>
     </section>
@@ -652,7 +1260,7 @@
     <!-- Code showcase -->
     <section style="padding-top: 40px;">
         <div class="container showcase">
-            <div class="reveal">
+            <div class="animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-code" aria-hidden="true"></i> Real code, not lock-in</span>
                 <h2>It writes the code <span class="gradient-text">you would have written</span> — on a good day.</h2>
                 <p>Clean, typed, readable Python on top of the open-source WPipe engine. No runtime dependency on Studio: the generated project is yours.</p>
@@ -663,7 +1271,7 @@
                     <li><i class="fas fa-circle-check" aria-hidden="true"></i><span><strong>Runs anywhere</strong> — <span class="mono">make into</span>, Docker or plain <span class="mono">uvicorn</span>.</span></li>
                 </ul>
             </div>
-            <div class="code-window reveal" role="img" aria-label="Example of generated app/pipelines.py code">
+            <div class="code-window animate-on-scroll" role="region" aria-label="Example of generated app/pipelines.py code">
                 <div class="code-tabs"><span class="active">app/pipelines.py</span><span>app/dto/context.py</span><span>Makefile</span></div>
 <pre><span class="k">from</span> wpipe <span class="k">import</span> Pipeline, Condition, Parallel
 <span class="k">from</span> dto.context <span class="k">import</span> PipelineContextDTO
@@ -695,7 +1303,7 @@
     <!-- ROI calculator -->
     <section id="roi">
         <div class="container">
-            <div class="roi reveal">
+            <div class="roi animate-on-scroll">
                 <div>
                     <span class="eyebrow"><i class="fas fa-calculator" aria-hidden="true"></i> Do the math</span>
                     <h2>How much is boilerplate <span class="gradient-text">costing you?</span></h2>
@@ -717,7 +1325,9 @@
                     <div class="roi-box"><span>Hours recovered per month</span><strong id="hoursSaved">160 h</strong></div>
                     <div class="roi-box hl"><span>Money recovered per month</span><strong id="moneySaved">8,000 €</strong></div>
                     <div class="roi-box"><span>Money recovered per year</span><strong id="yearSaved">96,000 €</strong></div>
-                    <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main"><i class="fas fa-crown" aria-hidden="true"></i> Stop paying the boilerplate tax</a>
+                    <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-glossy">
+                        <span class="btn-text"><i class="fas fa-crown" aria-hidden="true"></i> Stop paying the boilerplate tax</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -726,13 +1336,13 @@
     <!-- Pricing -->
     <section id="pricing">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-tags" aria-hidden="true"></i> Pricing</span>
                 <h2>Start free. <span class="gradient-text">Go Pro when it clicks.</span></h2>
                 <p>One saved week pays for the license many times over.</p>
             </div>
             <div class="pricing-grid">
-                <div class="plan reveal">
+                <div class="plan animate-on-scroll">
                     <h3>Free</h3>
                     <p class="tagline">Explore the canvas and ship small pipelines.</p>
                     <div class="price">0 € <small>forever</small></div>
@@ -746,7 +1356,7 @@
                     </ul>
                     <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-outline">Start for free</a>
                 </div>
-                <div class="plan featured reveal">
+                <div class="plan featured animate-on-scroll">
                     <span class="ribbon">MOST POPULAR</span>
                     <h3>Pro</h3>
                     <p class="tagline">For developers who ship microservices for a living.</p>
@@ -759,9 +1369,11 @@
                         <li><i class="fas fa-check" aria-hidden="true"></i> Live debugging with breakpoints</li>
                         <li><i class="fas fa-check" aria-hidden="true"></i> Works offline with a cryptographically signed lease</li>
                     </ul>
-                    <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main"><i class="fas fa-crown" aria-hidden="true"></i> Get WPipe Studio Pro</a>
+                    <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-glossy">
+                        <span class="btn-text"><i class="fas fa-crown" aria-hidden="true"></i> Get WPipe Studio Pro</span>
+                    </a>
                 </div>
-                <div class="plan reveal">
+                <div class="plan animate-on-scroll">
                     <h3>Team &amp; Enterprise</h3>
                     <p class="tagline">Floating seats for your whole engineering team.</p>
                     <div class="price">Seats <small>on demand</small></div>
@@ -781,33 +1393,86 @@
     <!-- Trust -->
     <section id="trust" style="padding-top: 30px;">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-user-shield" aria-hidden="true"></i> Built for serious teams</span>
                 <h2>Local-first. <span class="gradient-text">Private by design.</span></h2>
             </div>
             <div class="trust-grid">
-                <div class="trust-card reveal"><i class="fas fa-house-laptop" aria-hidden="true"></i><h4>Your code stays home</h4><p>Generation, simulation and projects run in the local engine on <span class="mono">127.0.0.1</span>. No source code is uploaded.</p></div>
-                <div class="trust-card reveal"><i class="fas fa-key" aria-hidden="true"></i><h4>Ed25519 licensing</h4><p>Signed, machine-bound leases verified offline. No phone-home on every keystroke.</p></div>
-                <div class="trust-card reveal"><i class="fab fa-microsoft" aria-hidden="true"></i><h4>VS Code native</h4><p>Open any <span class="mono">.wpipe</span> file as a visual editor, or use the installable web app.</p></div>
-                <div class="trust-card reveal"><i class="fas fa-code-fork" aria-hidden="true"></i><h4>No lock-in</h4><p>The output is plain Python on the open-source WPipe engine. Keep it even if you stop using Studio.</p></div>
+                <div class="trust-card animate-on-scroll"><i class="fas fa-house-laptop" aria-hidden="true"></i><h4>Your code stays home</h4><p>Generation, simulation and projects run in the local engine on <span class="mono">127.0.0.1</span>. No source code is uploaded.</p></div>
+                <div class="trust-card animate-on-scroll"><i class="fas fa-key" aria-hidden="true"></i><h4>Ed25519 licensing</h4><p>Signed, machine-bound leases verified offline. No phone-home on every keystroke.</p></div>
+                <div class="trust-card animate-on-scroll"><i class="fab fa-microsoft" aria-hidden="true"></i><h4>VS Code native</h4><p>Open any <span class="mono">.wpipe</span> file as a visual editor, or use the installable web app.</p></div>
+                <div class="trust-card animate-on-scroll"><i class="fas fa-code-fork" aria-hidden="true"></i><h4>No lock-in</h4><p>The output is plain Python on the open-source WPipe engine. Keep it even if you stop using Studio.</p></div>
             </div>
         </div>
     </section>
 
-    <!-- FAQ -->
+    <!-- 7. FAQ Accordion with Smooth Max-Height -->
     <section id="faq">
         <div class="container">
-            <div class="section-header reveal">
+            <div class="section-header animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-circle-question" aria-hidden="true"></i> FAQ</span>
                 <h2>Questions, <span class="gradient-text">answered</span></h2>
             </div>
-            <div class="faq">
-                <details class="reveal"><summary>Is this a low-code tool that hides the code from me? <i class="fas fa-plus" aria-hidden="true"></i></summary><p>No. Studio generates a normal Python project you can read, edit, version and deploy anywhere. The canvas is a faster way to design it, not a black box.</p></details>
-                <details class="reveal"><summary>What exactly do I get when I click generate? <i class="fas fa-plus" aria-hidden="true"></i></summary><p>A 36-file microservice: FastAPI app, WPipe pipeline (DAG), Pydantic DTOs, states, services, config YAML, Dockerfile, docker-compose, Makefile, pyproject, pytest config and a test suite — verified by 6 quality gates.</p></details>
-                <details class="reveal"><summary>Do I need to install anything? <i class="fas fa-plus" aria-hidden="true"></i></summary><p>You can explore the canvas in your browser right away. Real code generation, real simulation and project storage run in the lightweight local engine (wpipe-engine) or the VS Code extension, so your code never leaves your machine.</p></details>
-                <details class="reveal"><summary>What happens to code I modify by hand? <i class="fas fa-plus" aria-hidden="true"></i></summary><p>With Pro, Smart AST merge preserves your custom code when you regenerate after changing the canvas.</p></details>
-                <details class="reveal"><summary>Does it work offline? <i class="fas fa-plus" aria-hidden="true"></i></summary><p>Yes. The Pro license is a cryptographically signed lease bound to your machine, verified locally, with a grace period for when you are offline.</p></details>
-                <details class="reveal"><summary>Can my whole team use it? <i class="fas fa-plus" aria-hidden="true"></i></summary><p>Yes. Team and Enterprise plans use floating seats managed from a self-service portal, so seats move between developers as needed.</p></details>
+            <div class="faq-accordion animate-on-scroll">
+                <div class="faq-item active">
+                    <button class="faq-trigger" aria-expanded="true">
+                        <span>Is this a low-code tool that hides the code from me?</span>
+                        <span class="faq-icon"><i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+                    </button>
+                    <div class="faq-content">
+                        <p>No. Studio generates a normal Python project you can read, edit, version and deploy anywhere. The canvas is a faster way to design it, not a black box.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-trigger" aria-expanded="false">
+                        <span>What exactly do I get when I click generate?</span>
+                        <span class="faq-icon"><i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+                    </button>
+                    <div class="faq-content">
+                        <p>A 36-file microservice: FastAPI app, WPipe pipeline (DAG), Pydantic DTOs, states, services, config YAML, Dockerfile, docker-compose, Makefile, pyproject, pytest config and a test suite — verified by 6 quality gates.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-trigger" aria-expanded="false">
+                        <span>Do I need to install anything?</span>
+                        <span class="faq-icon"><i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+                    </button>
+                    <div class="faq-content">
+                        <p>You can explore the canvas in your browser right away. Real code generation, real simulation and project storage run in the lightweight local engine (wpipe-engine) or the VS Code extension, so your code never leaves your machine.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-trigger" aria-expanded="false">
+                        <span>What happens to code I modify by hand?</span>
+                        <span class="faq-icon"><i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+                    </button>
+                    <div class="faq-content">
+                        <p>With Pro, Smart AST merge preserves your custom code when you regenerate after changing the canvas.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-trigger" aria-expanded="false">
+                        <span>Does it work offline?</span>
+                        <span class="faq-icon"><i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+                    </button>
+                    <div class="faq-content">
+                        <p>Yes. The Pro license is a cryptographically signed lease bound to your machine, verified locally, with a grace period for when you are offline.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-trigger" aria-expanded="false">
+                        <span>Can my whole team use it?</span>
+                        <span class="faq-icon"><i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+                    </button>
+                    <div class="faq-content">
+                        <p>Yes. Team and Enterprise plans use floating seats managed from a self-service portal, so seats move between developers as needed.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -815,12 +1480,14 @@
     <!-- Final CTA -->
     <section class="final-cta">
         <div class="container">
-            <div class="final-card reveal">
+            <div class="final-card animate-on-scroll">
                 <span class="eyebrow"><i class="fas fa-hourglass-end" aria-hidden="true"></i> Your next microservice is waiting</span>
                 <h2>How did you ever build<br><span class="gradient-text">microservices any other way?</span></h2>
                 <p>What used to take you weeks, WPipe Studio does in minutes. Try it free today — and get Pro the moment you feel it.</p>
                 <div class="hero-btns">
-                    <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main"><i class="fas fa-crown" aria-hidden="true"></i> Get WPipe Studio Pro</a>
+                    <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-glossy">
+                        <span class="btn-text"><i class="fas fa-crown" aria-hidden="true"></i> Get WPipe Studio Pro</span>
+                    </a>
                     <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-outline">Try free in the browser</a>
                 </div>
             </div>
@@ -874,13 +1541,55 @@
         </div>
     </footer>
 
-    <!-- Sticky mobile CTA -->
+    <!-- Sticky Mobile Bottom CTA -->
     <div class="mobile-cta">
         <a href="https://studio.wisrovi.dev" target="_blank" rel="noopener" class="btn btn-outline">Try free</a>
-        <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main"><i class="fas fa-crown" aria-hidden="true"></i> Get Pro</a>
+        <a href="https://wisrovi.lemonsqueezy.com/checkout/buy/b2c96716-71a7-4df5-9d58-1ea58e1a5d96" target="_blank" rel="noopener" class="btn btn-main btn-glossy"><i class="fas fa-crown" aria-hidden="true"></i> Get Pro</a>
     </div>
 
     <script>
+        // 5. Splash Screen with 1.5s delay before fade-out
+        window.addEventListener('load', () => {
+            const splashScreen = document.getElementById('splashScreen');
+            const splashBar = document.getElementById('splashBar');
+            if (splashBar) splashBar.style.width = '100%';
+
+            setTimeout(() => {
+                if (splashScreen) {
+                    splashScreen.classList.add('fade-out');
+                    setTimeout(() => {
+                        splashScreen.style.display = 'none';
+                    }, 500);
+                }
+            }, 1500);
+        });
+
+        // 4. Mobile Menu & Drawer Interactions
+        const menuToggle = document.getElementById('menuToggle');
+        const mobileDrawer = document.getElementById('mobileDrawer');
+        const drawerOverlay = document.getElementById('drawerOverlay');
+        const drawerClose = document.getElementById('drawerClose');
+        const drawerLinks = document.querySelectorAll('.drawer-link');
+
+        function openDrawer() {
+            mobileDrawer.classList.add('open');
+            drawerOverlay.classList.add('open');
+            menuToggle.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDrawer() {
+            mobileDrawer.classList.remove('open');
+            drawerOverlay.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        }
+
+        if (menuToggle) menuToggle.addEventListener('click', openDrawer);
+        if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+        if (drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
+        drawerLinks.forEach((link) => link.addEventListener('click', closeDrawer));
+
         // Navbar scroll effect
         const nav = document.getElementById('navbar');
         const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
@@ -889,16 +1598,107 @@
 
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        // Reveal on scroll
-        const revealObserver = new IntersectionObserver((entries) => {
+        // 8. Scroll entry animation (IntersectionObserver adding .visible)
+        const scrollObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
                 if (entry.isIntersecting) {
-                    entry.target.classList.add('in');
-                    revealObserver.unobserve(entry.target);
+                    entry.target.classList.add('visible');
+                    scrollObserver.unobserve(entry.target);
                 }
             });
         }, { threshold: 0.12 });
-        document.querySelectorAll('.reveal').forEach((el) => revealObserver.observe(el));
+        document.querySelectorAll('.animate-on-scroll').forEach((el) => scrollObserver.observe(el));
+
+        // 7. Interactive Accordions (FAQ) with smooth max-height & rotating arrows
+        const faqItems = document.querySelectorAll('.faq-item');
+        faqItems.forEach((item) => {
+            const trigger = item.querySelector('.faq-trigger');
+            trigger.addEventListener('click', () => {
+                const isActive = item.classList.contains('active');
+                // Optional accordion single-open behavior:
+                faqItems.forEach((other) => {
+                    other.classList.remove('active');
+                    const otherBtn = other.querySelector('.faq-trigger');
+                    if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+                });
+                if (!isActive) {
+                    item.classList.add('active');
+                    trigger.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+
+        // 3. Interactive Table Rows (.selected state on click)
+        const compareTable = document.getElementById('compareTable');
+        if (compareTable) {
+            const rows = compareTable.querySelectorAll('tbody tr');
+            rows.forEach((row) => {
+                row.addEventListener('click', () => {
+                    rows.forEach((r) => r.classList.remove('selected'));
+                    row.classList.add('selected');
+                });
+            });
+        }
+
+        // 3 & 6. Step Importer Playground (Drag & Drop, Skeletons, Empty State)
+        const stepDropzone = document.getElementById('stepDropzone');
+        const btnSimulateUpload = document.getElementById('btnSimulateUpload');
+        const btnClearSandbox = document.getElementById('btnClearSandbox');
+        const emptyStateSandbox = document.getElementById('emptyStateSandbox');
+        const skeletonSandbox = document.getElementById('skeletonSandbox');
+        const resultSandbox = document.getElementById('resultSandbox');
+
+        if (stepDropzone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                stepDropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    stepDropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                stepDropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    stepDropzone.classList.remove('dragover');
+                }, false);
+            });
+
+            stepDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                simulateStepAnalysis();
+            });
+        }
+
+        function simulateStepAnalysis() {
+            if (btnSimulateUpload) btnSimulateUpload.classList.add('loading');
+            emptyStateSandbox.style.display = 'none';
+            resultSandbox.style.display = 'none';
+            skeletonSandbox.style.display = 'flex';
+
+            setTimeout(() => {
+                if (btnSimulateUpload) btnSimulateUpload.classList.remove('loading');
+                skeletonSandbox.style.display = 'none';
+                resultSandbox.style.display = 'block';
+            }, 1200);
+        }
+
+        if (btnSimulateUpload) {
+            btnSimulateUpload.addEventListener('click', (e) => {
+                e.stopPropagation();
+                simulateStepAnalysis();
+            });
+        }
+
+        if (btnClearSandbox) {
+            btnClearSandbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                skeletonSandbox.style.display = 'none';
+                resultSandbox.style.display = 'none';
+                emptyStateSandbox.style.display = 'flex';
+            });
+        }
 
         // Live build demo
         const GENERATED_FILES = [
@@ -915,12 +1715,11 @@
         const iconFor = (f) => {
             if (f.endsWith('.py')) return '<i class="fab fa-python" style="color:#4B8BBE"></i>';
             if (f.includes('Docker') || f.includes('docker')) return '<i class="fab fa-docker" style="color:#2496ED"></i>';
-            if (f.endsWith('.md')) return '<i class="fas fa-book" style="color:#a78bfa"></i>';
-            if (f.endsWith('.sh') || f === 'Makefile') return '<i class="fas fa-terminal" style="color:#22c55e"></i>';
+            if (f.endsWith('.md')) return '<i class="fas fa-book" style="color:#8b5cf6"></i>';
+            if (f.endsWith('.sh') || f === 'Makefile') return '<i class="fas fa-terminal" style="color:#10b981"></i>';
             return '<i class="fas fa-gear" style="color:#f59e0b"></i>';
         };
         const fileList = document.getElementById('fileList');
-        // Show a representative subset in the panel (counter still reaches 36)
         const VISIBLE = GENERATED_FILES.filter((f, i) => i < 9 || ['app/pipelines.py', 'app/dto/context.py', 'app/states/ai_sentiment_step.py', 'app/test/test_pipeline.py', 'app/main.py'].includes(f));
         fileList.innerHTML = [...new Set(VISIBLE)].map((f) => `<div class="file">${iconFor(f)}<span>${f}</span></div>`).join('');
 
@@ -930,6 +1729,7 @@
         const statusEl = document.getElementById('demoStatus');
         const timerEl = document.getElementById('demoTimer');
         const countEl = document.getElementById('fileCount');
+        const demoReplayBtn = document.getElementById('demoReplay');
         let timers = [];
         let clock = null;
 
@@ -945,10 +1745,13 @@
             countEl.textContent = '0';
             timerEl.textContent = '00:00';
             setStatus('Ready.');
+            if (demoReplayBtn) demoReplayBtn.classList.remove('loading');
         }
 
         function runDemo() {
             resetDemo();
+            if (demoReplayBtn) demoReplayBtn.classList.add('loading');
+
             if (reduceMotion) {
                 blocks.forEach((b) => b.classList.add('show'));
                 fileEls.forEach((f) => f.classList.add('show'));
@@ -956,9 +1759,10 @@
                 countEl.textContent = '36';
                 timerEl.textContent = '04:12';
                 setStatus('<span class="ok">✓ Microservice verified: 6/6 gates passed. Ready to ship.</span>');
+                if (demoReplayBtn) demoReplayBtn.classList.remove('loading');
                 return;
             }
-            // Simulated wall-clock: the whole design-to-ship flow compressed into ~12s of animation
+
             let simSeconds = 0;
             clock = setInterval(() => {
                 simSeconds += 21;
@@ -986,10 +1790,11 @@
                 fileEls.forEach((f) => f.classList.add('show'));
                 clearInterval(clock);
                 setStatus('<span class="ok">✓ Microservice verified: 6/6 gates passed. Ready to ship.</span>');
+                if (demoReplayBtn) demoReplayBtn.classList.remove('loading');
             }, tGates + gates.length * 380 + 200);
         }
 
-        document.getElementById('demoReplay').addEventListener('click', runDemo);
+        if (demoReplayBtn) demoReplayBtn.addEventListener('click', runDemo);
         const demoObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
                 if (entry.isIntersecting) { runDemo(); demoObserver.disconnect(); }
