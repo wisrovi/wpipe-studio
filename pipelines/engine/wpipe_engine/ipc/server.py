@@ -1,8 +1,9 @@
-from __future__ import annotations
 """WPipe Engine - Local IPC Server
 Exposes Unix Domain Socket and HTTP REST endpoints for the VS Code extension.
 Author: William Rodriguez (wisrovi.dev)
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -54,18 +55,52 @@ if not STEPS_CATALOG_FILE.exists():
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Multi-threaded HTTP server holding engine managers."""
+
     daemon_threads = True
+    license_mgr: LicenseManager
+    compiler: ASTCompiler
+    runner: LocalRunner
+    workspace_mgr: WorkspaceManager
+    socket_path: str | None = None
 
 
 class UnixHTTPServer(ThreadingMixIn, HTTPServer):
+    """Unix domain socket HTTP server holding engine managers."""
+
     address_family = socket.AF_UNIX
     daemon_threads = True
+    license_mgr: LicenseManager
+    compiler: ASTCompiler
+    runner: LocalRunner
+    workspace_mgr: WorkspaceManager
+    socket_path: str | None = None
 
 
 class EngineRequestHandler(BaseHTTPRequestHandler):
     """HTTP / IPC Request Handler for VS Code extension communication."""
 
     server_version = "WPipeEngine/1.0.0"
+
+    @property
+    def license_mgr(self) -> LicenseManager:
+        """Typed LicenseManager instance."""
+        return self.server.license_mgr
+
+    @property
+    def compiler(self) -> ASTCompiler:
+        """Typed ASTCompiler instance."""
+        return self.server.compiler
+
+    @property
+    def runner(self) -> LocalRunner:
+        """Typed LocalRunner instance."""
+        return self.server.runner
+
+    @property
+    def workspace_mgr(self) -> WorkspaceManager:
+        """Typed WorkspaceManager instance."""
+        return self.server.workspace_mgr
 
     def _is_allowed_origin(self) -> bool:
         """Check if incoming request Origin is trusted (localhost, 127.0.0.1, studio.wisrovi.dev, or vscode-webview)."""
@@ -134,7 +169,7 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
 
     def _license_status(self) -> dict[str, Any]:
         """Verified license status (entitlements come only from the signed lease token)."""
-        license_mgr: LicenseManager = self.server.license_mgr  # type: ignore
+        license_mgr: LicenseManager = self.license_mgr
         return license_mgr.get_status()
 
     def _gate(self, canvas_ir: Any, action: str) -> bool:
@@ -146,7 +181,7 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
 
     def _project_quota_ok(self) -> bool:
         """Enforce ``max_projects`` from the verified entitlements. Sends 403 when exceeded."""
-        workspace_mgr: WorkspaceManager = self.server.workspace_mgr  # type: ignore
+        workspace_mgr: WorkspaceManager = self.workspace_mgr
         ent = self._license_status().get("entitlements") or {}
         max_projects = ent.get("max_projects")
         if max_projects is not None and len(workspace_mgr.list_projects()) >= max_projects:
@@ -162,7 +197,7 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
 
     def _compile_files(self, canvas_ir: dict[str, Any], project_name: str) -> dict[str, str]:
         """Compile canvas IR server-side. Returns an empty mapping on compiler failure."""
-        compiler: ASTCompiler = self.server.compiler  # type: ignore
+        compiler: ASTCompiler = self.compiler
         try:
             files = compiler.compile_canvas(canvas_ir, project_name=project_name)
         except Exception:
@@ -272,8 +307,8 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
             self._send_json(403, {"error": "FORBIDDEN_ORIGIN", "message": "Cross-origin request rejected."})
             return
 
-        license_mgr: LicenseManager = self.server.license_mgr  # type: ignore
-        workspace_mgr: WorkspaceManager = self.server.workspace_mgr  # type: ignore
+        license_mgr: LicenseManager = self.license_mgr
+        workspace_mgr: WorkspaceManager = self.workspace_mgr
 
         clean_path = self.path.split("?")[0]
 
@@ -384,10 +419,10 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
             self._send_json(403, {"error": "FORBIDDEN_ORIGIN", "message": "Cross-origin request rejected."})
             return
 
-        license_mgr: LicenseManager = self.server.license_mgr  # type: ignore
-        compiler: ASTCompiler = self.server.compiler  # type: ignore
-        runner: LocalRunner = self.server.runner  # type: ignore
-        workspace_mgr: WorkspaceManager = self.server.workspace_mgr  # type: ignore
+        license_mgr: LicenseManager = self.license_mgr
+        compiler: ASTCompiler = self.compiler
+        runner: LocalRunner = self.runner
+        workspace_mgr: WorkspaceManager = self.workspace_mgr
 
         body = self._read_json_body()
         clean_path = self.path.split("?")[0]
@@ -610,7 +645,7 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
             self._send_json(403, {"error": "FORBIDDEN_ORIGIN", "message": "Cross-origin request rejected."})
             return
 
-        workspace_mgr: WorkspaceManager = self.server.workspace_mgr  # type: ignore
+        workspace_mgr: WorkspaceManager = self.workspace_mgr
         body = self._read_json_body()
         clean_path = self.path.split("?")[0]
 
@@ -650,7 +685,7 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
             self._send_json(403, {"error": "FORBIDDEN_ORIGIN", "message": "Cross-origin request rejected."})
             return
 
-        workspace_mgr: WorkspaceManager = self.server.workspace_mgr  # type: ignore
+        workspace_mgr: WorkspaceManager = self.workspace_mgr
         clean_path = self.path.split("?")[0]
 
         if clean_path.startswith("/api/v1/projects/") or clean_path.startswith("/v1/projects/"):
@@ -684,10 +719,10 @@ def start_ipc_server(
 
     if use_http or sys.platform == "win32":
         server = ThreadedHTTPServer((http_host, http_port), EngineRequestHandler)
-        server.license_mgr = license_mgr  # type: ignore
-        server.compiler = compiler  # type: ignore
-        server.runner = runner  # type: ignore
-        server.workspace_mgr = workspace_mgr  # type: ignore
+        server.license_mgr = license_mgr
+        server.compiler = compiler
+        server.runner = runner
+        server.workspace_mgr = workspace_mgr
         print(f"🚀 wpipe-engine escuchando en HTTP http://{http_host}:{http_port} (PID: {os.getpid()})")
         try:
             server.serve_forever()
@@ -699,10 +734,10 @@ def start_ipc_server(
         http_server = None
         try:
             http_server = ThreadedHTTPServer((http_host, http_port), EngineRequestHandler)
-            http_server.license_mgr = license_mgr  # type: ignore
-            http_server.compiler = compiler  # type: ignore
-            http_server.runner = runner  # type: ignore
-            http_server.workspace_mgr = workspace_mgr  # type: ignore
+            http_server.license_mgr = license_mgr
+            http_server.compiler = compiler
+            http_server.runner = runner
+            http_server.workspace_mgr = workspace_mgr
             http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
             http_thread.start()
             print(f"🌐 wpipe-engine servidor canvas activo en http://{http_host}:{http_port}")
@@ -718,11 +753,11 @@ def start_ipc_server(
 
         server = UnixHTTPServer(socket_path, EngineRequestHandler)
         os.chmod(socket_path, 0o666)  # Allow user access
-        server.socket_path = socket_path  # type: ignore
-        server.license_mgr = license_mgr  # type: ignore
-        server.compiler = compiler  # type: ignore
-        server.runner = runner  # type: ignore
-        server.workspace_mgr = workspace_mgr  # type: ignore
+        server.socket_path = socket_path
+        server.license_mgr = license_mgr
+        server.compiler = compiler
+        server.runner = runner
+        server.workspace_mgr = workspace_mgr
         print(f"🚀 wpipe-engine escuchando en socket Unix {socket_path} (PID: {os.getpid()})")
         try:
             server.serve_forever()
