@@ -3,10 +3,20 @@ Author: William Rodriguez (wisrovi.dev)
 """
 
 from typing import Any
-from wpipe import step, to_obj
-from wpipe.timeout import timeout_sync
+
 from client import CloudflareAdminClient
 from dto.admin_context import AdminPipelineContext
+from wpipe.decorators.step import step
+from wpipe.timeout import timeout_sync
+from wpipe.util.transform import to_obj
+
+
+def _get(obj: Any, key: str, default: Any = None) -> Any:
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
 
 
 @step(
@@ -24,11 +34,15 @@ class ManageActivationsStep:
     def __init__(self, client: CloudflareAdminClient | None = None) -> None:
         self.client = client or CloudflareAdminClient()
 
+    def execute(self, context: Any) -> Any:
+        """Execute step logic directly."""
+        return self(context)
+
     @timeout_sync(seconds=8)
     @to_obj(AdminPipelineContext)
     def __call__(self, context: Any) -> Any:
-        action = getattr(context, "action", None) or (context.get("action") if isinstance(context, dict) else "fetch_all")
-        target_id = getattr(context, "target_id", None) or (context.get("target_id") if isinstance(context, dict) else None)
+        action = _get(context, "action", "fetch_all")
+        target_id = _get(context, "target_id", None)
 
         try:
             if action == "delete_activation" and target_id:
@@ -39,7 +53,7 @@ class ManageActivationsStep:
                 context["activations"] = activations
             else:
                 context.activations = activations
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError, ConnectionError, TypeError, KeyError) as e:
             if isinstance(context, dict):
                 context["activations"] = []
                 context["error"] = str(e)
