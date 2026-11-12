@@ -1,8 +1,9 @@
-from __future__ import annotations
 """WPipe Engine - Pipeline Simulation & Test Runner
 Executes microservices, breakpoint inspections and unit test suites locally.
 Author: William Rodriguez (wisrovi.dev)
 """
+
+from __future__ import annotations
 
 import os
 import re
@@ -24,7 +25,7 @@ class LocalRunner:
         """Execute the real compiled WPipe microservice pipeline and capture step timeline and errors."""
         import json
         import shutil
-        import tempfile
+
         from .compiler import ASTCompiler
 
         nodes = canvas_ir.get("nodes", [])
@@ -183,7 +184,6 @@ class LocalRunner:
                 ]
 
                 # Match from the deepest traceback lines backwards
-                reversed_stderr = "\n".join(reversed(stderr_str.splitlines()))
                 for sn in reversed(step_nodes):
                     data = sn.get("data", {})
                     lbl = data.get("label") or data.get("step_name") or data.get("func_name") or ""
