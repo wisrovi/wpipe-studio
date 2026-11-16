@@ -92,3 +92,76 @@ def test_workspace_lifecycle():
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_trigger_switch_cleans_obsolete_test_files():
+    """Verify that switching canvas trigger cleanly deletes obsolete trigger test files.
+
+    Detailed explanation of test purpose and assertions:
+    1. A microservice is initially created with an HTTP/REST API trigger, containing
+       'app/test/send_http.py' and 'app/test/test_api.py'.
+    2. We verify on disk that both HTTP test files are created and active.
+    3. The project is then updated (trigger switched to Kafka) where generated files
+       now specify 'app/test/send_kafka.py' and 'app/test/test_consumer.py'.
+    4. We verify that 'app/test/send_http.py' and 'app/test/test_api.py' are physically
+       deleted/unlinked from disk, while 'app/test/send_kafka.py' and 'app/test/test_consumer.py'
+       are written.
+    5. The project is subsequently switched back to HTTP/REST.
+    6. We verify that 'app/test/send_kafka.py' and 'app/test/test_consumer.py' are removed,
+       and 'app/test/send_http.py' and 'app/test/test_api.py' are restored.
+    """
+    temp_dir = Path(tempfile.mkdtemp())
+    try:
+        mgr = WorkspaceManager(root_dir=temp_dir)
+
+        # 1. Create project with HTTP trigger test files
+        proj = mgr.create_project(
+            name="switchable_service",
+            description="Testing trigger file cleanup on switch",
+            generated_files=[
+                {"path": "app/main.py", "content": "# FastAPI main"},
+                {"path": "app/test/send_http.py", "content": "# send http request helper"},
+                {"path": "app/test/test_api.py", "content": "# test api suite"},
+            ],
+        )
+        proj_id = proj["id"]
+        pdir = temp_dir / "switchable_service"
+
+        assert (pdir / "app/test/send_http.py").is_file()
+        assert (pdir / "app/test/test_api.py").is_file()
+        assert not (pdir / "app/test/send_kafka.py").exists()
+        assert not (pdir / "app/test/test_consumer.py").exists()
+
+        # 2. Switch trigger to Kafka: update with send_kafka.py and test_consumer.py
+        mgr.update_project(proj_id, {
+            "generated_files": {
+                "app/main.py": "# WKafka main",
+                "app/test/send_kafka.py": "# send kafka message helper",
+                "app/test/test_consumer.py": "# test consumer suite",
+            }
+        })
+
+        # Verify HTTP test files are deleted and Kafka test files exist
+        assert (pdir / "app/test/send_kafka.py").is_file()
+        assert (pdir / "app/test/test_consumer.py").is_file()
+        assert not (pdir / "app/test/send_http.py").exists()
+        assert not (pdir / "app/test/test_api.py").exists()
+
+        # 3. Switch trigger back to HTTP: update with send_http.py and test_api.py
+        mgr.update_project(proj_id, {
+            "generated_files": {
+                "app/main.py": "# FastAPI main",
+                "app/test/send_http.py": "# send http request helper",
+                "app/test/test_api.py": "# test api suite",
+            }
+        })
+
+        # Verify Kafka test files are deleted and HTTP test files exist
+        assert (pdir / "app/test/send_http.py").is_file()
+        assert (pdir / "app/test/test_api.py").is_file()
+        assert not (pdir / "app/test/send_kafka.py").exists()
+        assert not (pdir / "app/test/test_consumer.py").exists()
+
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
