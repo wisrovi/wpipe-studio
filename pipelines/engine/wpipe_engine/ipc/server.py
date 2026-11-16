@@ -14,7 +14,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
-from typing import Any
+from typing import Any, cast
 
 from wpipe_engine.core.compiler import ASTCompiler
 from wpipe_engine.core.licensing import LicenseManager
@@ -76,6 +76,14 @@ class UnixHTTPServer(ThreadingMixIn, HTTPServer):
     workspace_mgr: WorkspaceManager
     socket_path: str | None = None
 
+    def __init__(
+        self,
+        server_address: Any,
+        RequestHandlerClass: type[BaseHTTPRequestHandler],
+        bind_and_activate: bool = True,
+    ) -> None:
+        super().__init__(server_address, RequestHandlerClass, bind_and_activate=bind_and_activate)
+
 
 class EngineRequestHandler(BaseHTTPRequestHandler):
     """HTTP / IPC Request Handler for VS Code extension communication."""
@@ -83,24 +91,29 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
     server_version = "WPipeEngine/1.0.0"
 
     @property
+    def _engine_server(self) -> ThreadedHTTPServer | UnixHTTPServer:
+        """Typed server instance."""
+        return cast(ThreadedHTTPServer | UnixHTTPServer, self.server)
+
+    @property
     def license_mgr(self) -> LicenseManager:
         """Typed LicenseManager instance."""
-        return self.server.license_mgr
+        return self._engine_server.license_mgr
 
     @property
     def compiler(self) -> ASTCompiler:
         """Typed ASTCompiler instance."""
-        return self.server.compiler
+        return self._engine_server.compiler
 
     @property
     def runner(self) -> LocalRunner:
         """Typed LocalRunner instance."""
-        return self.server.runner
+        return self._engine_server.runner
 
     @property
     def workspace_mgr(self) -> WorkspaceManager:
         """Typed WorkspaceManager instance."""
-        return self.server.workspace_mgr
+        return self._engine_server.workspace_mgr
 
     def _is_allowed_origin(self) -> bool:
         """Check if incoming request Origin is trusted (localhost, 127.0.0.1, studio.wisrovi.dev, or vscode-webview)."""
@@ -149,7 +162,7 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
                 self.send_header("Access-Control-Allow-Private-Network", "true")
             self.send_header("Vary", "Origin")
 
-    def _send_json(self, status_code: int, data: dict[str, Any]) -> None:
+    def _send_json(self, status_code: int, data: Any) -> None:
         raw = json.dumps(data, indent=2).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
@@ -491,11 +504,11 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(200, res)
                 return
             elif len(parts) >= 2 and parts[1] == "run-tests":
-                proj = workspace_mgr.get_project(parts[0])
-                if not proj:
+                target_proj = workspace_mgr.get_project(parts[0])
+                if not target_proj:
                     self._send_json(404, {"error": "PROJECT_NOT_FOUND", "id": parts[0]})
                     return
-                self._send_json(200, runner.run_pytest(Path(proj["workspace_dir"])))
+                self._send_json(200, runner.run_pytest(Path(target_proj["workspace_dir"])))
                 return
 
         # 2. License Activation
@@ -664,6 +677,13 @@ class EngineRequestHandler(BaseHTTPRequestHandler):
                 if not self._gate(body.get("canvas_ir"), "save_project"):
                     return
                 compiled = self._compile_files(body["canvas_ir"], body.get("name") or existing.get("name", "main_pipeline"))
+                # Discard conflicting stale test/helper files from allowed_paths when trigger changes
+                if "app/test/send_kafka.py" in compiled:
+                    allowed_paths.discard("app/test/send_http.py")
+                    allowed_paths.discard("app/test/test_api.py")
+                elif "app/test/send_http.py" in compiled:
+                    allowed_paths.discard("app/test/send_kafka.py")
+                    allowed_paths.discard("app/test/test_consumer.py")
                 allowed_paths |= set(compiled)
                 merged = dict(compiled)
                 merged.update({p: c for p, c in client_files.items() if p in allowed_paths})
@@ -751,20 +771,20 @@ def start_ipc_server(
             except OSError:
                 pass
 
-        server = UnixHTTPServer(socket_path, EngineRequestHandler)
+        unix_server = UnixHTTPServer(socket_path, EngineRequestHandler)
         os.chmod(socket_path, 0o666)  # Allow user access
-        server.socket_path = socket_path
-        server.license_mgr = license_mgr
-        server.compiler = compiler
-        server.runner = runner
-        server.workspace_mgr = workspace_mgr
+        unix_server.socket_path = socket_path
+        unix_server.license_mgr = license_mgr
+        unix_server.compiler = compiler
+        unix_server.runner = runner
+        unix_server.workspace_mgr = workspace_mgr
         print(f"🚀 wpipe-engine escuchando en socket Unix {socket_path} (PID: {os.getpid()})")
         try:
-            server.serve_forever()
+            unix_server.serve_forever()
         except KeyboardInterrupt:
             print("\n🛑 Apagando wpipe-engine...")
             if http_server:
                 http_server.server_close()
-            server.server_close()
+            unix_server.server_close()
             if os.path.exists(socket_path):
                 os.unlink(socket_path)
