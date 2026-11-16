@@ -16,13 +16,13 @@
 |---|---|---|
 | **Runtime** | **Python 3.11+ / CPython** | Core execution runtime for AST transformation, dependency analysis, and simulation. |
 | **Pipeline Core** | **WPipe** (`>=2.5.13`) & **wdecorators** | Native pipeline runtime engine, execution monitoring, and step orchestration. |
-| **Streaming Integration** | **`wkafka`** (`>=1.0.0`) | Official corporate library for Kafka streaming consumers, producers, and serializers. |
+| **Streaming Integration** | **`wkafka`** (`>=1.5.0`) | Official corporate library for Kafka streaming consumers, producers, and serializers (declarative YAML config loading). |
 | **Persistence (Tracking)**| **`wsqlite`** & SQLite3 | Local forensic metrics database (`tracking.db`) recording step runtimes and RAM consumption. |
 | **Cryptography** | **PyCA Cryptography** (`cryptography`) | Asymmetric Ed25519 signature verification on compact JWS lease tokens with machine fingerprint binding. |
 | **IPC Protocols** | **Unix Domain Sockets** (`socket.AF_UNIX`) & **HTTP PNA** | High-throughput local socket communication (`/tmp/wpipe.sock`) and W3C PNA HTTP server (`127.0.0.1:49152`). |
 | **Code Formatting** | **Black** & **isort** | Deterministic formatting applied server-side to generated Python microservices. |
 | **Binary Packaging** | **PyInstaller** / **Nuitka** | Compilation into a closed, standalone native executable (`dist/wpipe-engine`). |
-| **Testing** | **pytest** & **pytest-cov** | 56 automated unit, security, and penetration test cases. |
+| **Testing** | **pytest** & **pytest-cov** | 57 automated unit, security, and penetration test cases. |
 
 ---
 
@@ -56,6 +56,7 @@ vscode-extension/daemon_os/
    - Compiles visual Canvas IR into enterprise-grade Python microservices conforming strictly to `wpipe-mcp` standards.
    - Generates entrypoints for **FastAPI REST API** (`/run`) and **WKafka Streaming Workers** (`@kafka.consumer`).
    - Generates strict Pydantic v2 DTOs, class-based `@step` definitions, integration tests (`test_pipeline.py`, `test_api.py`, `test_consumer.py`), Dockerfiles, and Makefiles.
+   - Generates trigger-specific live test helpers: `app/test/send_kafka.py` for Kafka streaming workers and `app/test/send_http.py` for FastAPI REST endpoints. Dynamically removes obsolete test and helper files upon trigger switching in workspace.
 2. **Smart AST Code Merge**:
    - Preserves user-written custom imports (`# >>> [WPIPE:CUSTOM_IMPORTS]`) and logic (`# >>> [WPIPE:CUSTOM_LOGIC]`) across repeated visual re-compilations.
 3. **Hardware Machine Fingerprinting & Floating Seats**:
