@@ -21,6 +21,12 @@ def test_ast_compiler_generates_standard_microservice_files():
     assert "tests/test_pipeline.py" in files
     assert "requirements.txt" in files
     assert "README.md" in files
+    assert "pyproject.toml" in files
+    assert "ignore_missing_imports = true" in files["pyproject.toml"]
+    assert "app/test/send_http.py" in files
+    assert "app/test/send_kafka.py" not in files
+    assert "app/test/test_api.py" in files
+    assert "app/test/test_consumer.py" not in files
 
     pipe_code = files["app/pipelines.py"]
     assert "Pipeline(pipeline_name=\"security_scanner\")" in pipe_code
@@ -267,16 +273,23 @@ def test_ast_compiler_kafka_trigger_and_response():
     }
     files = compiler.compile_canvas(canvas, project_name="kafka_worker_service")
     assert "app/main.py" in files
+    assert "app/test/send_kafka.py" in files
+    assert "app/test/send_http.py" not in files
     assert "app/test/test_consumer.py" in files
     assert "app/test/test_api.py" not in files
+    assert "send_test_message" in files["app/test/send_kafka.py"]
     assert "requirements.txt" in files
-    assert "wkafka>=1.0.0" in files["requirements.txt"]
+    assert "wkafka>=1.5.0" in files["requirements.txt"]
 
     main_py = files["app/main.py"]
     assert "from wkafka import WKafka" in main_py
+    assert "config=settings.kafka_config_path" in main_py
     assert "@kafka.consumer" in main_py
     assert "kafka.run_consumers(block=True)" in main_py
     assert "with kafka.producer() as producer:" in main_py
+
+    settings_py = files["app/config/settings.py"]
+    assert "kafka_config_path:" in settings_py
 
     config_yaml = files["app/config/config.yaml"]
     assert "pipeline.events.in" in config_yaml
