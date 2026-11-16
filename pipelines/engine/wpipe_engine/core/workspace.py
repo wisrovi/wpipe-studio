@@ -237,7 +237,7 @@ class WorkspaceManager:
         docker_image: str = "python:3.11-slim",
         protocol: str = "fastapi",
         canvas_ir: dict[str, Any] | None = None,
-        generated_files: list[dict[str, str]] | None = None,
+        generated_files: dict[str, Any] | list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Create a new local project directory with canvas_ir, meta, and files."""
         clean_name = self._sanitize_name(name)
@@ -320,6 +320,23 @@ class WorkspaceManager:
         meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
         if "generated_files" in data:
+            gen_map = data["generated_files"]
+            gen_keys = (
+                set(gen_map.keys())
+                if isinstance(gen_map, dict)
+                else {f.get("path") or f.get("name") for f in gen_map if isinstance(f, dict)}
+            )
+            # Clean up mutually exclusive trigger-specific test and helper files
+            if "app/test/send_kafka.py" in gen_keys:
+                for stale in ("app/test/send_http.py", "app/test/test_api.py"):
+                    stale_file = pdir / stale
+                    if stale_file.is_file():
+                        stale_file.unlink(missing_ok=True)
+            elif "app/test/send_http.py" in gen_keys:
+                for stale in ("app/test/send_kafka.py", "app/test/test_consumer.py"):
+                    stale_file = pdir / stale
+                    if stale_file.is_file():
+                        stale_file.unlink(missing_ok=True)
             self._write_generated_files(pdir, data["generated_files"], allowed_paths=allowed_paths)
 
         return self.get_project(meta.get("id", project_id))
