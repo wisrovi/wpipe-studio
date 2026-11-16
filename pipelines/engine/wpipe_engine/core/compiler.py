@@ -1126,7 +1126,7 @@ from pipelines import build_pipeline
 from utils.helpers import generate_transaction_id
 
 kafka: WKafka = WKafka(
-    bootstrap_servers=settings.kafka_bootstrap_servers,
+    config=settings.kafka_config_path,
     client_id=settings.kafka_client_id or settings.app_name,
 )
 
@@ -1435,6 +1435,10 @@ class AppSettings(BaseModel):
     tracking_db: str = Field(
         default=os.getenv("WPIPE_TRACKING_DB", _tracking_cfg.get("db_path", "output/tracking.db")),
         description="WPipe forensics SQLite database",
+    )
+    kafka_config_path: str = Field(
+        default=os.getenv("KAFKA_CONFIG", str(Path(__file__).parent / "config.yaml")),
+        description="Path to YAML configuration file for WKafka",
     )
     kafka_bootstrap_servers: str = Field(
         default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", os.getenv("KAFKA_SERVER", _kafka_cfg.get("bootstrap_servers", "localhost:9092"))),
@@ -2059,6 +2063,58 @@ def test_on_kafka_event_wrapper() -> None:
     # Should execute and log without raising errors
     on_kafka_event(DummyMsg())
 '''
+            send_test_filename = "app/test/send_kafka.py"
+            send_test_py = '''"""Kafka message publisher helper for testing consumer pipeline execution.
+
+Sends sample telemetry/event payload to the configured Kafka input topic using WKafka.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Any
+
+from wkafka import WKafka
+
+# Add app package directory to path if needed
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config.settings import settings
+from utils.helpers import generate_transaction_id
+
+
+def send_test_message(payload: dict[str, Any] | None = None) -> None:
+    """Send test event message to the input Kafka topic."""
+    tx_id = generate_transaction_id("tx_kfk_test_")
+    test_data = payload or {
+        "transaction_id": tx_id,
+        "action": "test_event",
+        "data": "Sample event payload from send_kafka.py",
+        "url": "https://httpbin.org/get",
+        "method": "GET",
+    }
+    if "transaction_id" not in test_data:
+        test_data["transaction_id"] = tx_id
+
+    print(f"Connecting to Kafka brokers via config: {settings.kafka_config_path}")
+    kafka = WKafka(
+        config=settings.kafka_config_path,
+        client_id=f"{settings.app_name}_test_producer",
+    )
+
+    target_topic = settings.kafka_input_topic
+    print(f"Publishing message to topic '{target_topic}' (tx_id: {test_data['transaction_id']})...")
+
+    with kafka.producer() as producer:
+        producer.send(target_topic, value=test_data, format="json")
+
+    print(f"Message published successfully to '{target_topic}'.")
+
+
+if __name__ == "__main__":
+    send_test_message()
+'''
         else:
             test_entrypoint_filename = "app/test/test_api.py"
             test_api_py = '''"""FastAPI endpoint integration tests."""
@@ -2093,6 +2149,76 @@ def test_run_endpoint() -> None:
     assert data["status"] == "success"
     assert data["transaction_id"] == "tx_api_1"
 '''
+            send_test_filename = "app/test/send_http.py"
+            send_test_py = '''"""HTTP request test helper for testing pipeline REST API endpoint.
+
+Sends sample payload via POST to the FastAPI /run endpoint.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+# Add app package directory to path if needed
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config.settings import settings
+from utils.helpers import generate_transaction_id
+
+
+def send_test_request(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Send test POST request to the microservice /run endpoint."""
+    tx_id = generate_transaction_id("tx_http_test_")
+    test_data = payload or {
+        "user_id": 42,
+        "text": "Sample text for pipeline processing",
+        "url": "https://httpbin.org/get",
+        "method": "GET",
+    }
+
+    base_url = f"http://{settings.host}:{settings.port}"
+    if settings.host == "0.0.0.0":
+        base_url = f"http://localhost:{settings.port}"
+
+    root_path = settings.root_path.rstrip("/")
+    endpoint_url = f"{base_url}{root_path}/run"
+
+    request_body = {
+        "transaction_id": tx_id,
+        "payload": test_data,
+    }
+
+    print(f"Sending POST request to {endpoint_url} (tx_id: {tx_id})...")
+    data_bytes = json.dumps(request_body).encode("utf-8")
+    req = urllib.request.Request(
+        endpoint_url,
+        data=data_bytes,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp_data = json.loads(resp.read().decode("utf-8"))
+            print(f"Response status: {resp.status}")
+            print(f"Response body: {json.dumps(resp_data, indent=2)}")
+            return resp_data
+    except urllib.error.HTTPError as err:
+        print(f"HTTP Error {err.code}: {err.read().decode('utf-8')}")
+        raise
+    except Exception as err:
+        print(f"Connection failed: {err}")
+        raise
+
+
+if __name__ == "__main__":
+    send_test_request()
+'''
 
         root_test_pipeline_py = '''"""Root runner for pipeline tests."""
 
@@ -2102,7 +2228,7 @@ __all__ = ["test_build_pipeline", "test_execute_pipeline_success"]
 '''
 
         # 14. Root orchestration files
-        extra_reqs = "\nwkafka>=1.0.0" if is_kafka_trigger or is_kafka_publish else ""
+        extra_reqs = "\nwkafka>=1.5.0" if is_kafka_trigger or is_kafka_publish else ""
         requirements_txt = f"""wpipe>=2.5.13
 wpipe-steps>=1.0.2
 wdecorators>=1.1.0
@@ -2422,6 +2548,7 @@ known_first_party = ["config", "dto", "services", "states", "utils", "pipelines"
 [tool.mypy]
 mypy_path = ["app"]
 explicit_package_bases = true
+ignore_missing_imports = true
 """
 
         raw_files = {
@@ -2443,6 +2570,7 @@ explicit_package_bases = true
             "app/test/test_states.py": test_states_py,
             "app/test/test_pipeline.py": test_pipeline_py,
             test_entrypoint_filename: test_api_py,
+            send_test_filename: send_test_py,
             "app/utils/__init__.py": utils_init_py,
             "app/utils/helpers.py": utils_helpers_py,
             "app/pipelines.py": pipelines_py,
